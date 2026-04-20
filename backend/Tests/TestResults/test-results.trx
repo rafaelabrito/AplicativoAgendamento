@@ -1,0 +1,46 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="f3471855-8018-4404-8068-c36800fabe66" name="Dev@DESKTOP-CSNPPAT 2026-04-18 21:14:04" runUser="DESKTOP-CSNPPAT\Dev" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-04-18T21:14:04.0270535-03:00" queuing="2026-04-18T21:14:04.0270538-03:00" start="2026-04-18T21:14:02.0407921-03:00" finish="2026-04-18T21:14:04.0598093-03:00" />
+  <TestSettings name="default" id="6d7c750b-c058-4d70-a3b9-35bbc5854269">
+    <Deployment runDeploymentRoot="Dev_DESKTOP-CSNPPAT_2026-04-18_21_14_04" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="97be9bf1-41c2-42cd-824c-52cfb826b6ce" testId="0b5d0c45-bcb8-d54f-6d4d-3019e36e631d" testName="Tests.DisponibilidadeServiceTests.PermiteDisponibilidadeSemSobreposicao" computerName="DESKTOP-CSNPPAT" duration="00:00:00.0362564" startTime="2026-04-18T21:14:03.8745008-03:00" endTime="2026-04-18T21:14:03.8745012-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="97be9bf1-41c2-42cd-824c-52cfb826b6ce" />
+    <UnitTestResult executionId="c1579a40-5e1d-4cef-9037-3d359073d4e0" testId="dc9f66de-8bad-836e-1897-de3a38ab62fd" testName="Tests.DisponibilidadeServiceTests.NaoPermiteSobreposicaoDisponibilidade" computerName="DESKTOP-CSNPPAT" duration="00:00:00.9318501" startTime="2026-04-18T21:14:03.8380990-03:00" endTime="2026-04-18T21:14:03.8380995-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="c1579a40-5e1d-4cef-9037-3d359073d4e0" />
+    <UnitTestResult executionId="d4738f3c-e77a-491e-a491-dbb4897d4568" testId="d4833d70-3172-3830-509f-1962168890af" testName="Tests.UnitTest1.Test1" computerName="DESKTOP-CSNPPAT" duration="00:00:00.0024822" startTime="2026-04-18T21:14:02.9123839-03:00" endTime="2026-04-18T21:14:02.9124087-03:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="d4738f3c-e77a-491e-a491-dbb4897d4568" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="Tests.DisponibilidadeServiceTests.NaoPermiteSobreposicaoDisponibilidade" storage="c:\projetos\agendamentos\backend\tests\bin\debug\net8.0\tests.dll" id="dc9f66de-8bad-836e-1897-de3a38ab62fd">
+      <Execution id="c1579a40-5e1d-4cef-9037-3d359073d4e0" />
+      <TestMethod codeBase="C:\Projetos\agendamentos\backend\Tests\bin\Debug\net8.0\Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="Tests.DisponibilidadeServiceTests" name="NaoPermiteSobreposicaoDisponibilidade" />
+    </UnitTest>
+    <UnitTest name="Tests.UnitTest1.Test1" storage="c:\projetos\agendamentos\backend\tests\bin\debug\net8.0\tests.dll" id="d4833d70-3172-3830-509f-1962168890af">
+      <Execution id="d4738f3c-e77a-491e-a491-dbb4897d4568" />
+      <TestMethod codeBase="C:\Projetos\agendamentos\backend\Tests\bin\Debug\net8.0\Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="Tests.UnitTest1" name="Test1" />
+    </UnitTest>
+    <UnitTest name="Tests.DisponibilidadeServiceTests.PermiteDisponibilidadeSemSobreposicao" storage="c:\projetos\agendamentos\backend\tests\bin\debug\net8.0\tests.dll" id="0b5d0c45-bcb8-d54f-6d4d-3019e36e631d">
+      <Execution id="97be9bf1-41c2-42cd-824c-52cfb826b6ce" />
+      <TestMethod codeBase="C:\Projetos\agendamentos\backend\Tests\bin\Debug\net8.0\Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="Tests.DisponibilidadeServiceTests" name="PermiteDisponibilidadeSemSobreposicao" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="0b5d0c45-bcb8-d54f-6d4d-3019e36e631d" executionId="97be9bf1-41c2-42cd-824c-52cfb826b6ce" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="dc9f66de-8bad-836e-1897-de3a38ab62fd" executionId="c1579a40-5e1d-4cef-9037-3d359073d4e0" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="d4833d70-3172-3830-509f-1962168890af" executionId="d4738f3c-e77a-491e-a491-dbb4897d4568" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Resultados que não estão em uma lista" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="Todos os resultados carregados" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="3" executed="3" passed="3" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.5.3.1+6b60a9e56a (64-bit .NET 8.0.22)&#xD;
+[xUnit.net 00:00:00.10]   Discovering: Tests&#xD;
+[xUnit.net 00:00:00.14]   Discovered:  Tests&#xD;
+[xUnit.net 00:00:00.14]   Starting:    Tests&#xD;
+[xUnit.net 00:00:01.16]   Finished:    Tests&#xD;
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

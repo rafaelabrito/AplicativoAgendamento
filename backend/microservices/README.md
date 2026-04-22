@@ -18,23 +18,82 @@ API Gateway (Orquestrador - porta 8080)
 PostgreSQL (porta 5432)
 ```
 
+## Comandos Rápidos
+
+### Docker monolito (frontend + backend + banco)
+
+```bash
+docker compose -f docker-compose.yml up -d --build
+```
+
+### Docker microsserviços (gateway + serviços + banco)
+
+```bash
+docker compose -f docker-compose.microservices.yml up -d --build
+```
+
+### Local sem Docker (resumo)
+
+Backend:
+
+```powershell
+cd backend/API
+$env:ASPNETCORE_ENVIRONMENT="Development"
+$env:ASPNETCORE_URLS="http://localhost:5000"
+$env:ConnectionStrings__DefaultConnection="Host=localhost;Port=5433;Database=agendamentos;Username=postgres;Password=postgres"
+dotnet run
+```
+
+Frontend (monolito):
+
+```powershell
+cd frontend
+npm install
+$env:VITE_API_URL="http://localhost:5000"
+$env:VITE_PORT="5143"
+npm run dev
+```
+
+Frontend (microsserviços):
+
+```powershell
+cd frontend
+$env:VITE_API_URL="http://localhost:8080"
+$env:VITE_PORT="5143"
+npm run dev -- --mode microservices
+```
+
 ## Inicialização
 
 ### Usando Docker Compose
 
 ```bash
 # Subir todos os serviços
-docker-compose -f docker-compose.microservices.yml up -d
+docker compose -f docker-compose.microservices.yml up -d --build
 
 # Verificar status
-docker-compose -f docker-compose.microservices.yml ps
+docker compose -f docker-compose.microservices.yml ps
 
 # Ver logs
-docker-compose -f docker-compose.microservices.yml logs -f
+docker compose -f docker-compose.microservices.yml logs -f
 
 # Parar todos os serviços
-docker-compose -f docker-compose.microservices.yml down
+docker compose -f docker-compose.microservices.yml down
 ```
+
+### Frontend (para testar via navegador)
+
+O compose de microsserviços sobe API Gateway + serviços + banco. Para abrir a aplicação web, rode o frontend local apontando para o Gateway:
+
+```powershell
+cd frontend
+npm install
+$env:VITE_API_URL="http://localhost:8080"
+$env:VITE_PORT="5143"
+npm run dev -- --mode microservices
+```
+
+Aplicação web: http://localhost:5143
 
 ## Acessando os Serviços
 
@@ -159,16 +218,16 @@ backend/microservices/
 ### Serviço não responde
 ```bash
 # Verificar logs
-docker-compose -f docker-compose.microservices.yml logs relatorios-service
+docker compose -f docker-compose.microservices.yml logs relatorios-service
 
 # Reiniciar serviço específico
-docker-compose -f docker-compose.microservices.yml restart relatorios-service
+docker compose -f docker-compose.microservices.yml restart relatorios-service
 ```
 
 ### Erro de conexão com banco
 ```bash
 # Verificar se PostgreSQL está saudável
-docker-compose -f docker-compose.microservices.yml logs postgres
+docker compose -f docker-compose.microservices.yml logs postgres
 
 # Aplicar migrations (após setup)
 docker exec usuarios-service dotnet ef database update

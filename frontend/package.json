@@ -4,13 +4,15 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
+    "dev": "vite --host 0.0.0.0 --port 5143 --strictPort",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test": "jest --config jest.config.cjs",
     "test:watch": "jest --config jest.config.cjs --watch",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
+    "test:quality-gate": "powershell -ExecutionPolicy Bypass -File ./quality-gate.ps1 -Mode core",
+    "test:quality-gate:full": "powershell -ExecutionPolicy Bypass -File ./quality-gate.ps1 -Mode full",
     "preview": "vite preview"
   },
   "dependencies": {

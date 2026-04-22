@@ -32,8 +32,11 @@ services:
       dockerfile: Dockerfile
     depends_on:
       - backend
+    environment:
+      - VITE_PORT=5143
+      - VITE_API_URL=http://localhost:5000
     ports:
-      - "5173:5173"
+      - "5143:5143"
     restart: always
 
 volumes:

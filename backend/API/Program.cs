@@ -53,7 +53,7 @@ using Microsoft.EntityFrameworkCore;
         {
             options.AddPolicy("FrontendLocal", policy =>
             {
-                policy.WithOrigins("http://localhost:5173")
+                policy.WithOrigins("http://localhost:5143")
                       .AllowAnyHeader()
                       .AllowAnyMethod();
             });
@@ -70,6 +70,8 @@ using Microsoft.EntityFrameworkCore;
         builder.Services.AddScoped<Infrastructure.Persistence.AppDbContext>();
         // Add JwtTokenService
         builder.Services.AddScoped<API.Services.JwtTokenService>();
+        // Registro do serviço de relatórios
+        builder.Services.AddScoped<Application.Interfaces.IRelatorioService, Application.Services.RelatorioService>();
 
         // Add services to the container.
         // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -103,55 +105,18 @@ using Microsoft.EntityFrameworkCore;
         });
 
         var app = builder.Build();
+        var demoDataEnabled = builder.Configuration.GetValue("DemoData:Enabled", app.Environment.IsDevelopment());
+        var demoDataResetOnStartup = builder.Configuration.GetValue("DemoData:ResetOnStartup", app.Environment.IsDevelopment());
 
         using (var scope = app.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<Infrastructure.Persistence.AppDbContext>();
             db.Database.Migrate();
 
-            if (!db.Usuarios.Any(u => u.Email == "admin@admin.com"))
+            if (demoDataEnabled)
             {
-                db.Usuarios.Add(new Domain.Entities.Usuario
-                {
-                    Id = Guid.NewGuid(),
-                    Nome = "Administrador Padrão",
-                    Email = "admin@admin.com",
-                    SenhaHash = BCrypt.Net.BCrypt.HashPassword("Admin123!"),
-                    Tipo = Domain.Entities.TipoUsuario.Administrador,
-                    Ativo = true
-                });
+                SeedDemoData(db, demoDataResetOnStartup);
             }
-
-            if (!db.Usuarios.Any(u => u.Email == "user@user.com"))
-            {
-                db.Usuarios.Add(new Domain.Entities.Usuario
-                {
-                    Id = Guid.NewGuid(),
-                    Nome = "Cliente Padrão",
-                    Email = "user@user.com",
-                    SenhaHash = BCrypt.Net.BCrypt.HashPassword("User123!"),
-                    Tipo = Domain.Entities.TipoUsuario.Cliente,
-                    CPF = "52998224725",
-                    DataNascimento = new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                    Telefone = "11999999999",
-                    Ativo = true
-                });
-            }
-
-            if (!db.Usuarios.Any(u => u.Email == "atendente@atendente.com"))
-            {
-                db.Usuarios.Add(new Domain.Entities.Usuario
-                {
-                    Id = Guid.NewGuid(),
-                    Nome = "Atendente Padrão",
-                    Email = "atendente@atendente.com",
-                    SenhaHash = BCrypt.Net.BCrypt.HashPassword("Atendente123!"),
-                    Tipo = Domain.Entities.TipoUsuario.Atendente,
-                    Ativo = true
-                });
-            }
-
-            db.SaveChanges();
         }
 
         // Configure the HTTP request pipeline.
@@ -379,15 +344,22 @@ using Microsoft.EntityFrameworkCore;
                     "status" => isDesc ? query.OrderByDescending(a => a.Status) : query.OrderBy(a => a.Status),
                     "cliente" => isDesc ? query.OrderByDescending(a => a.Cliente!.Nome) : query.OrderBy(a => a.Cliente!.Nome),
                     "atendente" => isDesc ? query.OrderByDescending(a => a.Atendente!.Nome) : query.OrderBy(a => a.Atendente!.Nome),
+                    "horario" => isDesc ? query.OrderByDescending(a => a.Horario) : query.OrderBy(a => a.Horario),
+                    "tipo" => isDesc ? query.OrderByDescending(a => a.TipoAtendimento) : query.OrderBy(a => a.TipoAtendimento),
+                    "tipoatendimento" => isDesc ? query.OrderByDescending(a => a.TipoAtendimento) : query.OrderBy(a => a.TipoAtendimento),
+                    "datacriacao" => isDesc ? query.OrderByDescending(a => a.DataCriacao) : query.OrderBy(a => a.DataCriacao),
+                    "dataconfirmacao" => isDesc ? query.OrderByDescending(a => a.DataConfirmacao) : query.OrderBy(a => a.DataConfirmacao),
+                    "datacancelamento" => isDesc ? query.OrderByDescending(a => a.DataCancelamento) : query.OrderBy(a => a.DataCancelamento),
+                    "justificativa" => isDesc
+                        ? query.OrderByDescending(a => a.JustificativaRecusa ?? a.JustificativaCancelamento ?? "")
+                        : query.OrderBy(a => a.JustificativaRecusa ?? a.JustificativaCancelamento ?? ""),
                     _ => isDesc ? query.OrderByDescending(a => a.Data) : query.OrderBy(a => a.Data), // padrão: por data
                 };
 
                 var totalCount = await sortedQuery.CountAsync();
                 var totalPages = (totalCount + req.PageSize - 1) / req.PageSize;
 
-                var result = await sortedQuery
-                    .Skip((req.PageNumber - 1) * req.PageSize)
-                    .Take(req.PageSize)
+                var projectedQuery = sortedQuery
                     .Select(a => new API.Models.AgendamentoResponse
                     {
                         Id = a.Id,
@@ -411,10 +383,15 @@ using Microsoft.EntityFrameworkCore;
                         DataCancelamento = a.DataCancelamento,
                         DataReagendamento = a.DataReagendamento,
                         ResumoAtendimento = a.ResumoAtendimento
-                    }).ToListAsync();
+                    });
 
                 if (string.IsNullOrEmpty(req.ExportFormat))
                 {
+                    var result = await projectedQuery
+                        .Skip((req.PageNumber - 1) * req.PageSize)
+                        .Take(req.PageSize)
+                        .ToListAsync();
+
                     // Apenas retorna os dados filtrados com paginação
                     return Results.Ok(new AgendamentoReportResponse 
                     { 
@@ -425,13 +402,15 @@ using Microsoft.EntityFrameworkCore;
                     });
                 }
 
+                var exportRows = await projectedQuery.ToListAsync();
+
                 if (req.ExportFormat.ToLowerInvariant() == "csv")
                 {
                     var sb = new StringBuilder();
-                    sb.AppendLine("Id,Titulo,Descricao,TipoAtendimento,Data,Horario,Status,Cliente,Atendente,Observacoes,DataCriacao,DataConfirmacao,DataCancelamento,JustificativaRecusa,JustificativaCancelamento");
-                    foreach (var a in result)
+                    sb.AppendLine("NomeCliente,NomeAtendente,DataAtendimento,Horario,TipoAtendimento,Status,DataCriacao,DataConfirmacao,DataCancelamento,JustificativaRecusaCancelamento");
+                    foreach (var a in exportRows)
                     {
-                        sb.AppendLine($"{a.Id},{Escape(a.Titulo)},{Escape(a.Descricao)},{Escape(a.TipoAtendimento)},{a.Data.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)},{a.Horario},{a.Status},{Escape(a.ClienteNome)},{Escape(a.AtendenteName)},{Escape(a.Observacoes)},{a.DataCriacao.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)},{FormatNullableDate(a.DataConfirmacao)},{FormatNullableDate(a.DataCancelamento)},{Escape(a.JustificativaRecusa)},{Escape(a.JustificativaCancelamento)}");
+                        sb.AppendLine($"{Escape(a.ClienteNome)},{Escape(a.AtendenteName)},{a.Data.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)},{a.Horario},{Escape(a.TipoAtendimento)},{a.Status},{a.DataCriacao.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)},{FormatNullableDate(a.DataConfirmacao)},{FormatNullableDate(a.DataCancelamento)},{Escape(a.JustificativaRecusa ?? a.JustificativaCancelamento)}");
                     }
                     var bytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
                     return Results.File(bytes, "text/csv", "agendamentos.csv");
@@ -441,39 +420,29 @@ using Microsoft.EntityFrameworkCore;
                 {
                     using var workbook = new ClosedXML.Excel.XLWorkbook();
                     var ws = workbook.Worksheets.Add("Agendamentos");
-                    ws.Cell(1, 1).Value = "Id";
-                    ws.Cell(1, 2).Value = "Titulo";
-                    ws.Cell(1, 3).Value = "Descricao";
-                    ws.Cell(1, 4).Value = "TipoAtendimento";
-                    ws.Cell(1, 5).Value = "Data";
-                    ws.Cell(1, 6).Value = "Horario";
-                    ws.Cell(1, 7).Value = "Status";
-                    ws.Cell(1, 8).Value = "Cliente";
-                    ws.Cell(1, 9).Value = "Atendente";
-                    ws.Cell(1, 10).Value = "Observacoes";
-                    ws.Cell(1, 11).Value = "DataCriacao";
-                    ws.Cell(1, 12).Value = "DataConfirmacao";
-                    ws.Cell(1, 13).Value = "DataCancelamento";
-                    ws.Cell(1, 14).Value = "JustificativaRecusa";
-                    ws.Cell(1, 15).Value = "JustificativaCancelamento";
+                    ws.Cell(1, 1).Value = "Nome do Cliente";
+                    ws.Cell(1, 2).Value = "Nome do Atendente";
+                    ws.Cell(1, 3).Value = "Data do Atendimento";
+                    ws.Cell(1, 4).Value = "Horário";
+                    ws.Cell(1, 5).Value = "Tipo de Atendimento";
+                    ws.Cell(1, 6).Value = "Status";
+                    ws.Cell(1, 7).Value = "Data de Criação";
+                    ws.Cell(1, 8).Value = "Data de Confirmação";
+                    ws.Cell(1, 9).Value = "Data de Cancelamento";
+                    ws.Cell(1, 10).Value = "Justificativa de Recusa/Cancelamento";
                     int row = 2;
-                    foreach (var a in result)
+                    foreach (var a in exportRows)
                     {
-                        ws.Cell(row, 1).Value = a.Id.ToString();
-                        ws.Cell(row, 2).Value = a.Titulo;
-                        ws.Cell(row, 3).Value = a.Descricao;
-                        ws.Cell(row, 4).Value = a.TipoAtendimento;
-                        ws.Cell(row, 5).Value = a.Data.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
-                        ws.Cell(row, 6).Value = a.Horario;
-                        ws.Cell(row, 7).Value = a.Status;
-                        ws.Cell(row, 8).Value = a.ClienteNome;
-                        ws.Cell(row, 9).Value = a.AtendenteName;
-                        ws.Cell(row, 10).Value = a.Observacoes;
-                        ws.Cell(row, 11).Value = a.DataCriacao.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
-                        ws.Cell(row, 12).Value = FormatNullableDate(a.DataConfirmacao);
-                        ws.Cell(row, 13).Value = FormatNullableDate(a.DataCancelamento);
-                        ws.Cell(row, 14).Value = a.JustificativaRecusa;
-                        ws.Cell(row, 15).Value = a.JustificativaCancelamento;
+                        ws.Cell(row, 1).Value = a.ClienteNome;
+                        ws.Cell(row, 2).Value = a.AtendenteName;
+                        ws.Cell(row, 3).Value = a.Data.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+                        ws.Cell(row, 4).Value = a.Horario;
+                        ws.Cell(row, 5).Value = a.TipoAtendimento;
+                        ws.Cell(row, 6).Value = a.Status;
+                        ws.Cell(row, 7).Value = a.DataCriacao.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+                        ws.Cell(row, 8).Value = FormatNullableDate(a.DataConfirmacao);
+                        ws.Cell(row, 9).Value = FormatNullableDate(a.DataCancelamento);
+                        ws.Cell(row, 10).Value = a.JustificativaRecusa ?? a.JustificativaCancelamento;
                         row++;
                     }
                     using var ms = new System.IO.MemoryStream();
@@ -1194,7 +1163,7 @@ app.MapPut("/usuarios/{id:guid}", async (
 {
     var user = http.User;
     var userId = user.Claims.FirstOrDefault(c => c.Type == System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub || c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-    var userRole = user.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Role || c.Type == "role")?.Value;
+    var userRole = http.User.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Role || c.Type == "role")?.Value;
     var u = await db.Usuarios.FindAsync(id);
     if (u == null) return Results.NotFound();
     // Admin pode editar qualquer usuário, cliente/atendente só o próprio
@@ -1433,9 +1402,10 @@ app.MapPut("/disponibilidades/{id:guid}", async (
 {
     var d = await db.Disponibilidades.FindAsync(id);
     if (d == null) return Results.NotFound();
-    var (ok, error) = await disponibilidadeService.ValidarDisponibilidadeAsync(d.AtendenteId, req.DiaSemana, req.HoraInicio, req.HoraFim, id);
+    var (ok, error) = await disponibilidadeService.ValidarDisponibilidadeAsync(req.AtendenteId, req.DiaSemana, req.HoraInicio, req.HoraFim, id);
     if (!ok)
         return Results.BadRequest(new { error });
+    d.AtendenteId = req.AtendenteId;
     d.DiaSemana = req.DiaSemana;
     d.HoraInicio = req.HoraInicio;
     d.HoraFim = req.HoraFim;
@@ -1607,9 +1577,338 @@ app.MapGet("/user", () => "Acesso apenas para User!")
         return operation;
     });
 
+// Endpoints de Relatório (GET /api/relatorio, /api/relatorio/export/csv, /api/relatorio/export/xlsx)
+app.MapGet("/api/relatorio", async (Application.Interfaces.IRelatorioService relatorioService) =>
+{
+    var relatorio = await relatorioService.GetRelatorioAsync();
+    return Results.Ok(relatorio);
+})
+.RequireAuthorization()
+.WithName("GetRelatorio")
+.WithOpenApi(operation => {
+    operation.Summary = "Obtém relatório de agendamentos";
+    operation.Description = "Retorna um relatório com dados de agendamentos.";
+    return operation;
+});
 
+app.MapGet("/api/relatorio/export/csv", async (Application.Interfaces.IRelatorioService relatorioService) =>
+{
+    var relatorio = await relatorioService.GetRelatorioAsync();
+    using var memoryStream = new MemoryStream();
+    using var writer = new StreamWriter(memoryStream);
+    using var csv = new CsvHelper.CsvWriter(writer, new CsvHelper.Configuration.CsvConfiguration(System.Globalization.CultureInfo.InvariantCulture));
+    csv.WriteRecords(relatorio);
+    writer.Flush();
+    memoryStream.Position = 0;
+    return Results.File(memoryStream.ToArray(), "text/csv", "relatorio.csv");
+})
+.RequireAuthorization()
+.WithName("ExportRelatorioCsv")
+.WithOpenApi(operation => {
+    operation.Summary = "Exporta relatório em CSV";
+    operation.Description = "Exporta dados de agendamentos em formato CSV.";
+    return operation;
+});
+
+app.MapGet("/api/relatorio/export/xlsx", async (Application.Interfaces.IRelatorioService relatorioService) =>
+{
+    var relatorio = await relatorioService.GetRelatorioAsync();
+    using var workbook = new XLWorkbook();
+    var worksheet = workbook.Worksheets.Add("Relatorio");
+
+    var rows = relatorio?.ToList() ?? new List<object>();
+    if (rows.Count > 0)
+    {
+        var properties = rows[0].GetType().GetProperties();
+        for (var col = 0; col < properties.Length; col++)
+        {
+            worksheet.Cell(1, col + 1).Value = properties[col].Name;
+        }
+
+        for (var row = 0; row < rows.Count; row++)
+        {
+            for (var col = 0; col < properties.Length; col++)
+            {
+                var value = properties[col].GetValue(rows[row]);
+                worksheet.Cell(row + 2, col + 1).Value = value?.ToString() ?? string.Empty;
+            }
+        }
+    }
+
+    using var memoryStream = new MemoryStream();
+    workbook.SaveAs(memoryStream);
+    memoryStream.Position = 0;
+    return Results.File(memoryStream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "relatorio.xlsx");
+})
+.RequireAuthorization()
+.WithName("ExportRelatorioXlsx")
+.WithOpenApi(operation => {
+    operation.Summary = "Exporta relatório em XLSX";
+    operation.Description = "Exporta dados de agendamentos em formato Excel.";
+    return operation;
+});
 
 app.Run();
+
+static void SeedDemoData(Infrastructure.Persistence.AppDbContext db, bool resetOnStartup)
+{
+    var adminDemo = new DemoAdminUser("Administrador Padrão", "admin@admin.com", "teste@123");
+    var atendentesDemo = new[]
+    {
+        new DemoStaffUser("Atendente Padrao", "atendente@atendente.com", "Atendente123!"),
+        new DemoStaffUser("Maria Silva", "maria.silva@atendente.com", "Atendente123!"),
+        new DemoStaffUser("Joao Santos", "joao.santos@atendente.com", "Atendente123!"),
+        new DemoStaffUser("Paula Lima", "paula.lima@atendente.com", "Atendente123!"),
+        new DemoStaffUser("Bruno Rocha", "bruno.rocha@atendente.com", "Atendente123!"),
+    };
+    var clientesDemo = new[]
+    {
+        new DemoClientUser("Cliente Padrao", "user@user.com", "User123!", "52998224725", "11999999999", new DateTime(1990, 1, 1, 0, 0, 0, DateTimeKind.Utc)),
+        new DemoClientUser("Ana Costa", "ana.costa@cliente.com", "User123!", "12345678901", "11988887766", new DateTime(1985, 3, 15, 0, 0, 0, DateTimeKind.Utc)),
+        new DemoClientUser("Pedro Oliveira", "pedro.oliveira@cliente.com", "User123!", "98765432100", "11977776655", new DateTime(1992, 7, 22, 0, 0, 0, DateTimeKind.Utc)),
+        new DemoClientUser("Carla Mendes", "carla.mendes@cliente.com", "User123!", "11122233344", "11966665544", new DateTime(1988, 11, 5, 0, 0, 0, DateTimeKind.Utc)),
+        new DemoClientUser("Ricardo Ferreira", "ricardo.ferreira@cliente.com", "User123!", "55566677788", "11955554433", new DateTime(1995, 2, 28, 0, 0, 0, DateTimeKind.Utc)),
+    };
+
+    if (resetOnStartup)
+    {
+        var demoEmails = atendentesDemo.Select(user => user.Email)
+            .Concat(clientesDemo.Select(user => user.Email))
+            .Append(adminDemo.Email)
+            .ToArray();
+
+        db.Agendamentos.RemoveRange(db.Agendamentos.ToList());
+        db.Disponibilidades.RemoveRange(db.Disponibilidades.ToList());
+
+        var demoUsuarios = db.Usuarios.Where(user => demoEmails.Contains(user.Email)).ToList();
+        if (demoUsuarios.Count > 0)
+        {
+            db.Usuarios.RemoveRange(demoUsuarios);
+        }
+
+        db.SaveChanges();
+    }
+
+    var admin = db.Usuarios.FirstOrDefault(user => user.Email == adminDemo.Email);
+    if (admin == null)
+    {
+        admin = new Domain.Entities.Usuario
+        {
+            Id = Guid.NewGuid(),
+            Nome = adminDemo.Name,
+            Email = adminDemo.Email,
+            SenhaHash = BCrypt.Net.BCrypt.HashPassword(adminDemo.Password),
+            Tipo = Domain.Entities.TipoUsuario.Administrador,
+            Ativo = true,
+        };
+
+        db.Usuarios.Add(admin);
+    }
+    else
+    {
+        admin.Nome = adminDemo.Name;
+        admin.Tipo = Domain.Entities.TipoUsuario.Administrador;
+        admin.Ativo = true;
+
+        if (!BCrypt.Net.BCrypt.Verify(adminDemo.Password, admin.SenhaHash))
+        {
+            admin.SenhaHash = BCrypt.Net.BCrypt.HashPassword(adminDemo.Password);
+        }
+    }
+
+    foreach (var atendenteDemo in atendentesDemo)
+    {
+        var atendente = db.Usuarios.FirstOrDefault(user => user.Email == atendenteDemo.Email);
+        if (atendente == null)
+        {
+            db.Usuarios.Add(new Domain.Entities.Usuario
+            {
+                Id = Guid.NewGuid(),
+                Nome = atendenteDemo.Name,
+                Email = atendenteDemo.Email,
+                SenhaHash = BCrypt.Net.BCrypt.HashPassword(atendenteDemo.Password),
+                Tipo = Domain.Entities.TipoUsuario.Atendente,
+                Telefone = "11900000000",
+                Ativo = true,
+            });
+
+            continue;
+        }
+
+        atendente.Nome = atendenteDemo.Name;
+        atendente.Tipo = Domain.Entities.TipoUsuario.Atendente;
+        atendente.Telefone = "11900000000";
+        atendente.Ativo = true;
+
+        if (!BCrypt.Net.BCrypt.Verify(atendenteDemo.Password, atendente.SenhaHash))
+        {
+            atendente.SenhaHash = BCrypt.Net.BCrypt.HashPassword(atendenteDemo.Password);
+        }
+    }
+
+    foreach (var clienteDemo in clientesDemo)
+    {
+        var cliente = db.Usuarios.FirstOrDefault(user => user.Email == clienteDemo.Email);
+        if (cliente == null)
+        {
+            db.Usuarios.Add(new Domain.Entities.Usuario
+            {
+                Id = Guid.NewGuid(),
+                Nome = clienteDemo.Name,
+                Email = clienteDemo.Email,
+                SenhaHash = BCrypt.Net.BCrypt.HashPassword(clienteDemo.Password),
+                Tipo = Domain.Entities.TipoUsuario.Cliente,
+                CPF = clienteDemo.Cpf,
+                DataNascimento = clienteDemo.BirthDate,
+                Telefone = clienteDemo.Phone,
+                Ativo = true,
+            });
+
+            continue;
+        }
+
+        cliente.Nome = clienteDemo.Name;
+        cliente.Tipo = Domain.Entities.TipoUsuario.Cliente;
+        cliente.CPF = clienteDemo.Cpf;
+        cliente.DataNascimento = clienteDemo.BirthDate;
+        cliente.Telefone = clienteDemo.Phone;
+        cliente.Ativo = true;
+
+        if (!BCrypt.Net.BCrypt.Verify(clienteDemo.Password, cliente.SenhaHash))
+        {
+            cliente.SenhaHash = BCrypt.Net.BCrypt.HashPassword(clienteDemo.Password);
+        }
+    }
+
+    db.SaveChanges();
+
+    var atendentesSeed = db.Usuarios
+        .Where(user => atendentesDemo.Select(item => item.Email).Contains(user.Email))
+        .OrderBy(user => user.Email)
+        .ToList();
+
+    var clientesSeed = db.Usuarios
+        .Where(user => clientesDemo.Select(item => item.Email).Contains(user.Email))
+        .OrderBy(user => user.Email)
+        .ToList();
+
+    db.Disponibilidades.RemoveRange(db.Disponibilidades.ToList());
+
+    var diasAbril = new[]
+    {
+        DayOfWeek.Monday,
+        DayOfWeek.Tuesday,
+        DayOfWeek.Wednesday,
+        DayOfWeek.Thursday,
+        DayOfWeek.Friday,
+    };
+
+    var faixas = new[]
+    {
+        (new TimeSpan(8, 0, 0), new TimeSpan(10, 0, 0)),
+        (new TimeSpan(10, 0, 0), new TimeSpan(12, 0, 0)),
+    };
+
+    foreach (var atendente in atendentesSeed)
+    {
+        foreach (var dia in diasAbril)
+        {
+            foreach (var faixa in faixas)
+            {
+                db.Disponibilidades.Add(new Domain.Entities.Disponibilidade
+                {
+                    Id = Guid.NewGuid(),
+                    AtendenteId = atendente.Id,
+                    DiaSemana = dia,
+                    HoraInicio = faixa.Item1,
+                    HoraFim = faixa.Item2,
+                    Ativo = true,
+                });
+            }
+        }
+    }
+
+    db.Agendamentos.RemoveRange(db.Agendamentos.ToList());
+
+    if (atendentesSeed.Count >= 5 && clientesSeed.Count >= 5)
+    {
+        var tipos = new[] { "Consultoria", "Suporte Tecnico", "Atendimento Comercial", "Entrevista" };
+        var horarios = new[]
+        {
+            new TimeSpan(8, 0, 0),
+            new TimeSpan(10, 0, 0),
+            new TimeSpan(14, 0, 0),
+            new TimeSpan(16, 0, 0),
+        };
+
+        var datasAbril = new[]
+        {
+            1, 2, 3, 4, 7,
+            8, 9, 10, 11, 14,
+            15, 16, 17, 18, 21,
+            22, 23, 24, 25, 28,
+        };
+
+        var statusDistribuidos = new[]
+        {
+            Domain.Entities.StatusAgendamento.Confirmado,
+            Domain.Entities.StatusAgendamento.Confirmado,
+            Domain.Entities.StatusAgendamento.Confirmado,
+            Domain.Entities.StatusAgendamento.Confirmado,
+            Domain.Entities.StatusAgendamento.Confirmado,
+            Domain.Entities.StatusAgendamento.Confirmado,
+            Domain.Entities.StatusAgendamento.Confirmado,
+            Domain.Entities.StatusAgendamento.Confirmado,
+            Domain.Entities.StatusAgendamento.Cancelado,
+            Domain.Entities.StatusAgendamento.Cancelado,
+            Domain.Entities.StatusAgendamento.Cancelado,
+            Domain.Entities.StatusAgendamento.Cancelado,
+            Domain.Entities.StatusAgendamento.Cancelado,
+            Domain.Entities.StatusAgendamento.Cancelado,
+            Domain.Entities.StatusAgendamento.Pendente,
+            Domain.Entities.StatusAgendamento.Pendente,
+            Domain.Entities.StatusAgendamento.Pendente,
+            Domain.Entities.StatusAgendamento.Pendente,
+            Domain.Entities.StatusAgendamento.Pendente,
+            Domain.Entities.StatusAgendamento.Pendente,
+        };
+
+        for (var index = 0; index < 20; index++)
+        {
+            var cliente = clientesSeed[index % clientesSeed.Count];
+            var atendente = atendentesSeed[index % atendentesSeed.Count];
+            var tipo = tipos[index % tipos.Length];
+            var data = new DateTime(2026, 4, datasAbril[index], 0, 0, 0, DateTimeKind.Utc);
+            var horario = horarios[index % horarios.Length];
+            var status = statusDistribuidos[index];
+
+            db.Agendamentos.Add(new Domain.Entities.Agendamento
+            {
+                Id = Guid.NewGuid(),
+                Titulo = $"{tipo} - {cliente.Nome}",
+                Descricao = $"Atendimento de {tipo.ToLowerInvariant()} em abril/2026.",
+                TipoAtendimento = tipo,
+                Data = data,
+                Horario = horario,
+                Status = status,
+                ClienteId = cliente.Id,
+                AtendenteId = atendente.Id,
+                DataCriacao = data.AddDays(-3),
+                DataConfirmacao = status == Domain.Entities.StatusAgendamento.Confirmado ? data.AddDays(-1) : null,
+                DataCancelamento = status == Domain.Entities.StatusAgendamento.Cancelado ? data.AddDays(-1) : null,
+                ResumoAtendimento = null,
+            });
+        }
+    }
+
+    db.SaveChanges();
+}
+
+sealed record DemoAdminUser(string Name, string Email, string Password);
+
+sealed record DemoStaffUser(string Name, string Email, string Password);
+
+sealed record DemoClientUser(string Name, string Email, string Password, string Cpf, string Phone, DateTime BirthDate);
 
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 {

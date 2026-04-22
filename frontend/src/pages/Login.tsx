@@ -76,8 +76,9 @@ export default function Login() {
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '13px', fontWeight: '600', color: '#374151', display: 'block', textAlign: 'left' }}>E-mail</label>
+            <label htmlFor="email" style={{ fontSize: '13px', fontWeight: '600', color: '#374151', display: 'block', textAlign: 'left' }}>E-mail</label>
             <input
+              id="email"
               type="email"
               placeholder="seu@email.com"
               value={email}
@@ -98,8 +99,9 @@ export default function Login() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '13px', fontWeight: '600', color: '#374151', display: 'block', textAlign: 'left' }}>Senha</label>
+            <label htmlFor="password" style={{ fontSize: '13px', fontWeight: '600', color: '#374151', display: 'block', textAlign: 'left' }}>Senha</label>
             <input
+              id="password"
               type="password"
               placeholder="••••••••"
               value={password}

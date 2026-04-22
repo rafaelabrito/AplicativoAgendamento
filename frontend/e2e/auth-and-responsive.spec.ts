@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test';
 
 async function login(page: Parameters<typeof test>[0]['page']) {
-  await page.goto('/login');
-  await page.getByLabel('E-mail').fill('admin@admin.com');
-  await page.getByLabel('Senha').fill('Admin123!');
+  await page.goto('/login', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: 'Login' })).toBeVisible();
+  await page.getByPlaceholder('seu@email.com').fill('admin@admin.com');
+  await page.getByPlaceholder('••••••••').fill('teste@123');
   await page.getByRole('button', { name: 'Entrar' }).click();
   await expect(page).toHaveURL(/\/dashboard/);
 }

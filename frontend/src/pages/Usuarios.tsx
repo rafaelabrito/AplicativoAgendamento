@@ -23,8 +23,16 @@ export default function Usuarios() {
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string|null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [paginaAtual, setPaginaAtual] = useState(1);
   const navigate = useNavigate();
   const isAdmin = user?.tipo === 'Administrador';
+  const itensPorPagina = 8;
+
+  const totalPaginas = Math.max(1, Math.ceil(usuarios.length / itensPorPagina));
+  const paginaSegura = Math.min(paginaAtual, totalPaginas);
+  const inicio = (paginaSegura - 1) * itensPorPagina;
+  const fim = inicio + itensPorPagina;
+  const usuariosPaginados = usuarios.slice(inicio, fim);
 
   const fetchUsuarios = () => {
     setLoading(true);
@@ -43,6 +51,12 @@ export default function Usuarios() {
     fetchUsuarios();
     // eslint-disable-next-line
   }, [isAdmin, user]);
+
+  useEffect(() => {
+    if (paginaAtual > totalPaginas) {
+      setPaginaAtual(totalPaginas);
+    }
+  }, [paginaAtual, totalPaginas]);
 
   const handleEdit = (u: Usuario) => {
     navigate(`/usuarios/editar/${u.id}`);
@@ -115,7 +129,7 @@ export default function Usuarios() {
               </tr>
             </thead>
             <tbody>
-              {usuarios.map(u => (
+              {usuariosPaginados.map(u => (
                 <tr key={u.id}>
                   <td style={{ padding: '12px', color: '#0f172a', borderTop: '1px solid #f1f5f9' }}>{u.nome}</td>
                   <td style={{ padding: '12px', color: '#334155', borderTop: '1px solid #f1f5f9' }}>{u.email}</td>
@@ -163,6 +177,80 @@ export default function Usuarios() {
               )}
             </tbody>
           </table>
+
+          {usuarios.length > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 10,
+                flexWrap: 'wrap',
+                borderTop: '1px solid #e2e8f0',
+                padding: '12px 16px',
+                background: '#fff',
+              }}
+            >
+              <span style={{ color: '#475569', fontSize: 14 }}>
+                Exibindo {inicio + 1} - {Math.min(fim, usuarios.length)} de {usuarios.length}
+              </span>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => setPaginaAtual((p) => Math.max(1, p - 1))}
+                  disabled={paginaSegura === 1}
+                  style={{
+                    background: '#f8fafc',
+                    color: '#334155',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: 8,
+                    padding: '6px 10px',
+                    fontWeight: 600,
+                    opacity: paginaSegura === 1 ? 0.5 : 1,
+                  }}
+                >
+                  Anterior
+                </button>
+
+                {Array.from({ length: totalPaginas }, (_, index) => index + 1).map((pagina) => (
+                  <button
+                    key={pagina}
+                    type="button"
+                    onClick={() => setPaginaAtual(pagina)}
+                    style={{
+                      background: pagina === paginaSegura ? '#4f46e5' : '#fff',
+                      color: pagina === paginaSegura ? '#fff' : '#334155',
+                      border: pagina === paginaSegura ? '1px solid #4f46e5' : '1px solid #cbd5e1',
+                      borderRadius: 8,
+                      padding: '6px 10px',
+                      fontWeight: 700,
+                      minWidth: 36,
+                    }}
+                  >
+                    {pagina}
+                  </button>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={() => setPaginaAtual((p) => Math.min(totalPaginas, p + 1))}
+                  disabled={paginaSegura === totalPaginas}
+                  style={{
+                    background: '#f8fafc',
+                    color: '#334155',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: 8,
+                    padding: '6px 10px',
+                    fontWeight: 600,
+                    opacity: paginaSegura === totalPaginas ? 0.5 : 1,
+                  }}
+                >
+                  Próxima
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
       <ConfirmModal

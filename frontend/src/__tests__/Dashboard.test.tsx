@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import Dashboard from '../pages/Dashboard';
 import * as api from '../services/api';
 import { BrowserRouter } from 'react-router-dom';
+import * as authStore from '../store/auth';
 
 jest.mock('../services/api');
 
@@ -22,6 +23,12 @@ const mockDisponibilidades = [
 describe('Dashboard', () => {
   beforeEach(() => {
     jest.resetAllMocks();
+    jest.spyOn(authStore, 'useAuth').mockReturnValue({
+      token: 'token',
+      user: { id: '1', nome: 'Admin', tipo: 'Administrador' },
+      setAuth: jest.fn(),
+      logout: jest.fn(),
+    });
     api.default.get = jest.fn()
       .mockImplementationOnce(() => Promise.resolve({ data: mockUsuarios }))
       .mockImplementationOnce(() => Promise.resolve({ data: mockAgendamentos }))

@@ -1,8 +1,9 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Layout from '../components/Layout';
 import api from '../services/api';
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from '../components/Charts';
+import { useAuth } from '../store/auth';
+import { PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from '../components/Charts';
 
 interface Usuario {
   id: string;
@@ -11,12 +12,74 @@ interface Usuario {
 interface Agendamento {
   id: string;
   status: string;
+  data?: string;
+  atendenteId?: string;
+  atendenteNome?: string;
+  atendenteName?: string;
 }
 interface Disponibilidade {
   id: string;
 }
 
+const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+const addDays = (date: Date, days: number) => {
+  const copy = new Date(date);
+  copy.setDate(copy.getDate() + days);
+  return copy;
+};
+const toInputDate = (date: Date) => {
+  const d = startOfDay(date);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+function ChartSurface({
+  children,
+  height = 220,
+}: {
+  children: (size: { width: number; height: number }) => React.ReactNode;
+  height?: number;
+}) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const updateSize = () => {
+      const rect = el.getBoundingClientRect();
+      setSize({ width: rect.width, height: rect.height });
+    };
+
+    updateSize();
+
+    const observer = new ResizeObserver(() => updateSize());
+    observer.observe(el);
+
+    return () => observer.disconnect();
+  }, []);
+
+  const width = Math.max(1, Math.floor(size.width));
+  const measuredHeight = Math.max(1, Math.floor(size.height));
+  const canRenderChart = width > 0 && measuredHeight > 0;
+
+  return (
+    <div ref={containerRef} style={{ width: '100%', height, marginTop: 16 }}>
+      {canRenderChart ? children({ width, height: measuredHeight }) : null}
+    </div>
+  );
+}
+
 export default function Dashboard() {
+  const { user } = useAuth();
+  const isAdmin = user?.tipo === 'Administrador' || user?.tipo === 'Admin';
+  const [periodoInicio, setPeriodoInicio] = useState(() => toInputDate(addDays(new Date(), -19)));
+  const [periodoFim, setPeriodoFim] = useState(() => toInputDate(new Date()));
+  const [periodoAtendenteId, setPeriodoAtendenteId] = useState('');
+
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [agendamentos, setAgendamentos] = useState<Agendamento[]>([]);
   const [disponibilidades, setDisponibilidades] = useState<Disponibilidade[]>([]);
@@ -26,19 +89,24 @@ export default function Dashboard() {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    Promise.all([
+    const requests: Promise<any>[] = [
       api.get('/usuarios'),
       api.get('/agendamentos'),
-      api.get('/disponibilidades'),
-    ])
+    ];
+    if (isAdmin) {
+      requests.push(api.get('/disponibilidades'));
+    }
+    Promise.all(requests)
       .then(([usuariosRes, agendamentosRes, disponibilidadesRes]) => {
         setUsuarios(usuariosRes.data);
         setAgendamentos(agendamentosRes.data);
-        setDisponibilidades(disponibilidadesRes.data);
+        if (isAdmin && disponibilidadesRes) {
+          setDisponibilidades(disponibilidadesRes.data);
+        }
       })
       .catch(() => setError('Erro ao carregar dados do dashboard.'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [isAdmin]);
 
   // Totais por tipo de usuário
   const totalAdmins = usuarios.filter(u => u.tipo === 'Administrador').length;
@@ -59,6 +127,53 @@ export default function Dashboard() {
       agendamentos.filter(a => a.status === s.key || (s.key === 'Pendente' && a.status === 'PendenteConfirmacao')).length,
     ])
   );
+
+  const atendentes = usuarios.filter((u) => u.tipo === 'Atendente');
+  const atendenteNomePorId = atendentes.reduce((acc, item: any) => {
+    acc[String(item.id)] = String(item.nome || 'Atendente');
+    return acc;
+  }, {} as Record<string, string>);
+
+  const inicioDate = startOfDay(new Date(periodoInicio));
+  const fimDate = startOfDay(new Date(periodoFim));
+  const intervaloValido = !Number.isNaN(inicioDate.getTime()) && !Number.isNaN(fimDate.getTime()) && inicioDate <= fimDate;
+
+  const agendamentosNoPeriodo = agendamentos
+    .map((a) => {
+      const dateStr = String(a.data || '').slice(0, 10);
+      const date = startOfDay(new Date(`${dateStr}T00:00:00`));
+      const atendenteId = String(a.atendenteId || '');
+      const atendenteNome = String(a.atendenteNome || a.atendenteName || atendenteNomePorId[atendenteId] || 'Atendente');
+      return { ...a, date, atendenteId, atendenteNome };
+    })
+    .filter((a) => !Number.isNaN(a.date.getTime()))
+    .filter((a) => (intervaloValido ? a.date >= inicioDate && a.date <= fimDate : true))
+    .filter((a) => (!periodoAtendenteId ? true : a.atendenteId === periodoAtendenteId));
+
+  const periodByDay = new Map<string, number>();
+  agendamentosNoPeriodo.forEach((item) => {
+    const key = toInputDate(item.date);
+    periodByDay.set(key, (periodByDay.get(key) || 0) + 1);
+  });
+
+  const intervaloDias = intervaloValido
+    ? Math.floor((fimDate.getTime() - inicioDate.getTime()) / (24 * 60 * 60 * 1000)) + 1
+    : 0;
+  const datasNoIntervalo = intervaloValido
+    ? Array.from({ length: intervaloDias }, (_, i) => toInputDate(addDays(inicioDate, i)))
+    : [];
+
+  const atendenteSelecionadoNome = periodoAtendenteId
+    ? atendenteNomePorId[periodoAtendenteId] || 'Atendente selecionado'
+    : 'Todos os atendentes';
+
+  const periodChartData = datasNoIntervalo
+    .map((date) => ({
+      data: date.split('-').reverse().join('/'),
+      dataIso: date,
+      total: periodByDay.get(date) || 0,
+      atendenteNome: atendenteSelecionadoNome,
+    }));
 
   // Dados para gráficos
   const usuarioPieData = [
@@ -89,24 +204,26 @@ export default function Dashboard() {
               marginBottom: 24,
             }}
           >
-            <div style={{ background: '#fff', borderRadius: 18, border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgba(15,23,42,0.06)', padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div style={{ fontSize: 42, fontWeight: 800, color: '#4338ca', lineHeight: 1 }}>{usuarios.length}</div>
-              <div style={{ fontSize: 22, fontWeight: 700, marginTop: 10, color: '#0f172a' }}>Usuários</div>
-              <div style={{ fontSize: 16, color: '#475569', marginTop: 8, textAlign: 'center' }}>Admins: {totalAdmins} | Atendentes: {totalAtendentes} | Clientes: {totalClientes}</div>
-              <div style={{ width: '100%', height: 220, marginTop: 16 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={usuarioPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} label>
-                      {usuarioPieData.map((_, idx) => (
-                        <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
+            {isAdmin && (
+              <div style={{ background: '#fff', borderRadius: 18, border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgba(15,23,42,0.06)', padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div style={{ fontSize: 42, fontWeight: 800, color: '#4338ca', lineHeight: 1 }}>{usuarios.length}</div>
+                <div style={{ fontSize: 22, fontWeight: 700, marginTop: 10, color: '#0f172a' }}>Usuários</div>
+                <div style={{ fontSize: 16, color: '#475569', marginTop: 8, textAlign: 'center' }}>Admins: {totalAdmins} | Atendentes: {totalAtendentes} | Clientes: {totalClientes}</div>
+                <ChartSurface>
+                  {({ width, height }) => (
+                    <PieChart width={width} height={height}>
+                      <Pie data={usuarioPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} label>
+                        {usuarioPieData.map((_, idx) => (
+                          <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  )}
+                </ChartSurface>
               </div>
-            </div>
+            )}
             <div style={{ background: '#fff', borderRadius: 18, border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgba(15,23,42,0.06)', padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <div style={{ fontSize: 42, fontWeight: 800, color: '#4338ca', lineHeight: 1 }}>{agendamentos.length}</div>
               <div style={{ fontSize: 22, fontWeight: 700, marginTop: 10, color: '#0f172a' }}>Agendamentos</div>
@@ -128,9 +245,9 @@ export default function Dashboard() {
                   </span>
                 ))}
               </div>
-              <div style={{ width: '100%', height: 220, marginTop: 16 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={agendamentoBarData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <ChartSurface>
+                {({ width, height }) => (
+                  <BarChart width={width} height={height} data={agendamentoBarData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="status" />
                     <YAxis allowDecimals={false} />
@@ -138,17 +255,98 @@ export default function Dashboard() {
                     <Legend />
                     <Bar dataKey="total" fill="#7c3aed" />
                   </BarChart>
-                </ResponsiveContainer>
+                )}
+              </ChartSurface>
+            </div>
+            {isAdmin && (
+              <div style={{ background: '#fff', borderRadius: 18, border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgba(15,23,42,0.06)', padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ fontSize: 42, fontWeight: 800, color: '#4338ca', lineHeight: 1 }}>{disponibilidades.length}</div>
+                <div style={{ fontSize: 22, fontWeight: 700, marginTop: 10, color: '#0f172a' }}>Disponibilidades</div>
+                <div style={{ fontSize: 16, color: '#475569', marginTop: 8, textAlign: 'center' }}>Janelas ativas para atendimento</div>
               </div>
-            </div>
-            <div style={{ background: '#fff', borderRadius: 18, border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgba(15,23,42,0.06)', padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              <div style={{ fontSize: 42, fontWeight: 800, color: '#4338ca', lineHeight: 1 }}>{disponibilidades.length}</div>
-              <div style={{ fontSize: 22, fontWeight: 700, marginTop: 10, color: '#0f172a' }}>Disponibilidades</div>
-              <div style={{ fontSize: 16, color: '#475569', marginTop: 8, textAlign: 'center' }}>Janelas ativas para atendimento</div>
-            </div>
+            )}
           </div>
           <div style={{ background: '#fff', borderRadius: 18, border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgba(15,23,42,0.06)', padding: 18 }}>
             <p style={{ color: '#1e293b', fontSize: 17 }}>Bem-vindo ao sistema de agendamentos! Os indicadores acima ajudam a monitorar a operação diária.</p>
+          </div>
+
+          <div style={{ marginTop: 18, background: '#fff', borderRadius: 18, border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgba(15,23,42,0.06)', padding: 18 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 14 }}>
+              <div>
+                <h2 style={{ margin: 0, color: '#0f172a', fontSize: 24, fontWeight: 800 }}>Agendamentos por período</h2>
+                <p style={{ margin: '6px 0 0', color: '#475569' }}>Filtre os dias e veja a evolução dos agendamentos no intervalo.</p>
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                <label style={{ display: 'grid', gap: 4, color: '#334155', fontSize: 13, fontWeight: 700 }}>
+                  Data inicial
+                  <input
+                    type="date"
+                    value={periodoInicio}
+                    onChange={(e) => setPeriodoInicio(e.target.value)}
+                    style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px', minWidth: 170 }}
+                  />
+                </label>
+
+                <label style={{ display: 'grid', gap: 4, color: '#334155', fontSize: 13, fontWeight: 700 }}>
+                  Data final
+                  <input
+                    type="date"
+                    value={periodoFim}
+                    onChange={(e) => setPeriodoFim(e.target.value)}
+                    style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px', minWidth: 170 }}
+                  />
+                </label>
+
+                <label style={{ display: 'grid', gap: 4, color: '#334155', fontSize: 13, fontWeight: 700 }}>
+                  Atendente
+                  <select
+                    value={periodoAtendenteId}
+                    onChange={(e) => setPeriodoAtendenteId(e.target.value)}
+                    style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px', minWidth: 200 }}
+                  >
+                    <option value="">Todos os atendentes</option>
+                    {atendentes.map((a: any) => (
+                      <option key={a.id} value={a.id}>{a.nome}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            {!intervaloValido && (
+              <div style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', borderRadius: 12, padding: '10px 12px', marginBottom: 12 }}>
+                O período informado é inválido. Ajuste as datas para visualizar o gráfico.
+              </div>
+            )}
+
+            <div style={{ color: '#334155', fontWeight: 700, marginBottom: 4 }}>
+              Total no período: {agendamentosNoPeriodo.length}
+            </div>
+
+            <ChartSurface height={260}>
+              {({ width, height }) => (
+                <LineChart width={width} height={height} data={periodChartData} margin={{ top: 16, right: 10, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="data" />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip
+                    formatter={(value: any, _name: any, item: any) => {
+                      const total = Number(value || 0);
+                      const raw = item?.payload?.data || item?.payload?.dataIso || '';
+                      const nome = item?.payload?.atendenteNome || atendenteSelecionadoNome;
+                      return [`${raw}: ${nome} atendeu ${total} pessoa(s)`, 'Atendimentos'];
+                    }}
+                  />
+                  <Legend />
+                  <Line type="monotone" dataKey="total" stroke="#4f46e5" strokeWidth={3} dot={{ r: 3 }} activeDot={{ r: 6 }} />
+                </LineChart>
+              )}
+            </ChartSurface>
+
+            {intervaloValido && periodChartData.length === 0 && (
+              <div style={{ color: '#64748b', marginTop: 8 }}>Nenhum agendamento encontrado no período selecionado.</div>
+            )}
           </div>
         </>
       )}

@@ -8,6 +8,14 @@ if (typeof global.TextDecoder === 'undefined') {
 
 const React = require('react');
 
+if (typeof global.ResizeObserver === 'undefined') {
+	global.ResizeObserver = class ResizeObserver {
+		observe() {}
+		unobserve() {}
+		disconnect() {}
+	};
+}
+
 // Cleanup open handles after each test
 afterEach(() => {
 	jest.clearAllTimers();

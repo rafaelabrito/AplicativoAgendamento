@@ -172,6 +172,12 @@ export default function Relatorios() {
   };
 
   const formatDate = (value?: string) => value ? String(value).slice(0, 10) : '-';
+  const formatHorario = (value?: string) => {
+    if (!value) return '-';
+    const asString = String(value);
+    if (/^\d{2}:\d{2}:\d{2}/.test(asString)) return asString.slice(0, 5);
+    return asString;
+  };
 
   const cardStyle: React.CSSProperties = {
     background: '#fff',
@@ -265,11 +271,16 @@ export default function Relatorios() {
               <div>
                 <label htmlFor="ordenacao" style={labelStyle}>Ordenação</label>
                 <select id="ordenacao" name="ordenacao" value={relatorioConfig.ordenacao} onChange={handleRelatorioConfig} style={fieldStyle}>
-                  <option value="data">Ordenar por Data</option>
-                  <option value="titulo">Ordenar por Título</option>
-                  <option value="status">Ordenar por Status</option>
-                  <option value="cliente">Ordenar por Cliente</option>
-                  <option value="atendente">Ordenar por Atendente</option>
+                  <option value="cliente">Nome do Cliente</option>
+                  <option value="atendente">Nome do Atendente</option>
+                  <option value="data">Data do Atendimento</option>
+                  <option value="horario">Horário</option>
+                  <option value="tipoatendimento">Tipo de Atendimento</option>
+                  <option value="status">Status</option>
+                  <option value="datacriacao">Data de Criação</option>
+                  <option value="dataconfirmacao">Data de Confirmação</option>
+                  <option value="datacancelamento">Data de Cancelamento</option>
+                  <option value="justificativa">Justificativa de Recusa/Cancelamento</option>
                 </select>
               </div>
               <div>
@@ -430,45 +441,43 @@ export default function Relatorios() {
       ) : (
         <>
           <div style={{ ...cardStyle, overflowX: 'auto', padding: 0 }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1500, tableLayout: 'fixed' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1450, tableLayout: 'fixed' }}>
               <thead>
                 <tr style={{ background: '#f8fafc', color: '#334155' }}>
-                  <th style={{ width: '12%', padding: '14px 16px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontWeight: 700 }}>Título</th>
-                  <th style={{ width: '12%', padding: '14px 16px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontWeight: 700 }}>Descrição</th>
-                  <th style={{ width: '9%', padding: '14px 16px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontWeight: 700 }}>Cliente</th>
-                  <th style={{ width: '9%', padding: '14px 16px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontWeight: 700 }}>Atendente</th>
-                  <th style={{ width: '7%', padding: '14px 16px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontWeight: 700 }}>Tipo</th>
-                  <th style={{ width: '7%', padding: '14px 16px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontWeight: 700 }}>Data</th>
-                  <th style={{ width: '7%', padding: '14px 16px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontWeight: 700 }}>Status</th>
-                  <th style={{ width: '10%', padding: '14px 16px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontWeight: 700 }}>Observações</th>
-                  <th style={{ width: '8%', padding: '14px 16px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontWeight: 700 }}>Confirmação</th>
-                  <th style={{ width: '8%', padding: '14px 16px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontWeight: 700 }}>Cancelamento</th>
-                  <th style={{ width: '11%', padding: '14px 16px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontWeight: 700 }}>Justificativa Recusa</th>
-                  <th style={{ width: '11%', padding: '14px 16px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontWeight: 700 }}>Justificativa Cancelamento</th>
+                  <th style={{ width: '12%', padding: '14px 16px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontWeight: 700 }}>Nome do Cliente</th>
+                  <th style={{ width: '12%', padding: '14px 16px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontWeight: 700 }}>Nome do Atendente</th>
+                  <th style={{ width: '10%', padding: '14px 16px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontWeight: 700 }}>Data do Atendimento</th>
+                  <th style={{ width: '7%', padding: '14px 16px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontWeight: 700 }}>Horário</th>
+                  <th style={{ width: '10%', padding: '14px 16px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontWeight: 700 }}>Tipo de Atendimento</th>
+                  <th style={{ width: '8%', padding: '14px 16px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontWeight: 700 }}>Status</th>
+                  <th style={{ width: '10%', padding: '14px 16px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontWeight: 700 }}>Data de Criação</th>
+                  <th style={{ width: '10%', padding: '14px 16px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontWeight: 700 }}>Data de Confirmação</th>
+                  <th style={{ width: '10%', padding: '14px 16px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontWeight: 700 }}>Data de Cancelamento</th>
+                  <th style={{ width: '21%', padding: '14px 16px', textAlign: 'left', borderBottom: '1px solid #e2e8f0', fontWeight: 700 }}>Justificativa de Recusa/Cancelamento</th>
                 </tr>
               </thead>
               <tbody>
                 {dados.length === 0 ? (
                   <tr>
-                    <td colSpan={12} style={{ padding: '20px 16px', textAlign: 'center', color: '#64748b' }}>Nenhum resultado encontrado.</td>
+                    <td colSpan={10} style={{ padding: '20px 16px', textAlign: 'center', color: '#64748b' }}>Nenhum resultado encontrado.</td>
                   </tr>
                 ) : (
                   dados.map((a) => (
                     <tr key={a.id}>
-                      <td style={{ padding: '12px 16px', borderTop: '1px solid #f1f5f9', color: '#0f172a', fontWeight: 600 }}>{a.titulo}</td>
-                      <td style={{ padding: '12px 16px', borderTop: '1px solid #f1f5f9', color: '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.descricao || '-'}</td>
                       <td style={{ padding: '12px 16px', borderTop: '1px solid #f1f5f9', color: '#334155' }}>{a.clienteNome || (a.clienteId ? nomePorId[a.clienteId] || a.clienteId : '-')}</td>
                       <td style={{ padding: '12px 16px', borderTop: '1px solid #f1f5f9', color: '#334155' }}>{a.atendenteNome || (a.atendenteId ? nomePorId[a.atendenteId] || a.atendenteId : '-')}</td>
-                      <td style={{ padding: '12px 16px', borderTop: '1px solid #f1f5f9', color: '#334155' }}>{a.tipoAtendimento}</td>
                       <td style={{ padding: '12px 16px', borderTop: '1px solid #f1f5f9', color: '#334155', whiteSpace: 'nowrap' }}>{formatDate(a.data)}</td>
+                      <td style={{ padding: '12px 16px', borderTop: '1px solid #f1f5f9', color: '#334155', whiteSpace: 'nowrap' }}>{formatHorario(a.horario)}</td>
+                      <td style={{ padding: '12px 16px', borderTop: '1px solid #f1f5f9', color: '#334155' }}>{a.tipoAtendimento}</td>
                       <td style={{ padding: '12px 16px', borderTop: '1px solid #f1f5f9' }}>
                         <span style={{ ...statusStyle(a.status), display: 'inline-block', borderRadius: 999, fontSize: 12, fontWeight: 700, padding: '4px 10px', whiteSpace: 'nowrap' }}>{a.status}</span>
                       </td>
-                      <td style={{ padding: '12px 16px', borderTop: '1px solid #f1f5f9', color: '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.observacoes || '-'}</td>
+                      <td style={{ padding: '12px 16px', borderTop: '1px solid #f1f5f9', color: '#334155', whiteSpace: 'nowrap' }}>{formatDate(a.dataCriacao)}</td>
                       <td style={{ padding: '12px 16px', borderTop: '1px solid #f1f5f9', color: '#334155', whiteSpace: 'nowrap' }}>{formatDate(a.dataConfirmacao)}</td>
                       <td style={{ padding: '12px 16px', borderTop: '1px solid #f1f5f9', color: '#334155', whiteSpace: 'nowrap' }}>{formatDate(a.dataCancelamento)}</td>
-                      <td style={{ padding: '12px 16px', borderTop: '1px solid #f1f5f9', color: '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.justificativaRecusa || '-'}</td>
-                      <td style={{ padding: '12px 16px', borderTop: '1px solid #f1f5f9', color: '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.justificativaCancelamento || '-'}</td>
+                      <td style={{ padding: '12px 16px', borderTop: '1px solid #f1f5f9', color: '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {a.justificativaRecusa || a.justificativaCancelamento || '-'}
+                      </td>
                     </tr>
                   ))
                 )}

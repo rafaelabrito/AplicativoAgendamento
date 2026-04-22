@@ -19,6 +19,17 @@ public class GatewayController : ControllerBase
         _logger = logger;
     }
 
+    private static async Task<IActionResult> ToActionResultAsync(HttpResponseMessage response)
+    {
+        var content = await response.Content.ReadAsStringAsync();
+        return new ContentResult
+        {
+            StatusCode = (int)response.StatusCode,
+            Content = content,
+            ContentType = response.Content.Headers.ContentType?.ToString() ?? "application/json"
+        };
+    }
+
     // =============== USUARIOS SERVICE ===============
     
     /// <summary>
@@ -31,8 +42,7 @@ public class GatewayController : ControllerBase
         {
             var client = _httpClientFactory.CreateClient("Usuarios");
             var response = await client.PostAsJsonAsync("/usuarios/login", credentials);
-            var content = await response.Content.ReadAsAsync<object>();
-            return StatusCode((int)response.StatusCode, content);
+            return await ToActionResultAsync(response);
         }
         catch (Exception ex)
         {
@@ -59,8 +69,7 @@ public class GatewayController : ControllerBase
                 url += $"?page={page}&pageSize={pageSize}";
 
             var response = await client.GetAsync(url);
-            var content = await response.Content.ReadAsAsync<object>();
-            return StatusCode((int)response.StatusCode, content);
+            return await ToActionResultAsync(response);
         }
         catch (Exception ex)
         {
@@ -83,8 +92,7 @@ public class GatewayController : ControllerBase
                 client.DefaultRequestHeaders.Add("Authorization", token);
 
             var response = await client.PostAsJsonAsync("/usuarios", usuario);
-            var content = await response.Content.ReadAsAsync<object>();
-            return StatusCode((int)response.StatusCode, content);
+            return await ToActionResultAsync(response);
         }
         catch (Exception ex)
         {
@@ -107,8 +115,7 @@ public class GatewayController : ControllerBase
                 client.DefaultRequestHeaders.Add("Authorization", token);
 
             var response = await client.PutAsJsonAsync($"/usuarios/{id}", usuario);
-            var content = await response.Content.ReadAsAsync<object>();
-            return StatusCode((int)response.StatusCode, content);
+            return await ToActionResultAsync(response);
         }
         catch (Exception ex)
         {
@@ -131,8 +138,7 @@ public class GatewayController : ControllerBase
                 client.DefaultRequestHeaders.Add("Authorization", token);
 
             var response = await client.DeleteAsync($"/usuarios/{id}");
-            var content = await response.Content.ReadAsAsync<object>();
-            return StatusCode((int)response.StatusCode, content);
+            return await ToActionResultAsync(response);
         }
         catch (Exception ex)
         {
@@ -166,8 +172,7 @@ public class GatewayController : ControllerBase
             if (pageSize.HasValue) url += $"pageSize={pageSize}";
 
             var response = await client.GetAsync(url.TrimEnd('&'));
-            var content = await response.Content.ReadAsAsync<object>();
-            return StatusCode((int)response.StatusCode, content);
+            return await ToActionResultAsync(response);
         }
         catch (Exception ex)
         {
@@ -190,8 +195,7 @@ public class GatewayController : ControllerBase
                 client.DefaultRequestHeaders.Add("Authorization", token);
 
             var response = await client.PostAsJsonAsync("/agendamentos", agendamento);
-            var content = await response.Content.ReadAsAsync<object>();
-            return StatusCode((int)response.StatusCode, content);
+            return await ToActionResultAsync(response);
         }
         catch (Exception ex)
         {
@@ -214,8 +218,7 @@ public class GatewayController : ControllerBase
                 client.DefaultRequestHeaders.Add("Authorization", token);
 
             var response = await client.PutAsJsonAsync($"/agendamentos/{id}", agendamento);
-            var content = await response.Content.ReadAsAsync<object>();
-            return StatusCode((int)response.StatusCode, content);
+            return await ToActionResultAsync(response);
         }
         catch (Exception ex)
         {
@@ -241,8 +244,7 @@ public class GatewayController : ControllerBase
 
             var url = "/disponibilidade" + (atendenteId.HasValue ? $"?atendenteId={atendenteId}" : "");
             var response = await client.GetAsync(url);
-            var content = await response.Content.ReadAsAsync<object>();
-            return StatusCode((int)response.StatusCode, content);
+            return await ToActionResultAsync(response);
         }
         catch (Exception ex)
         {
@@ -266,8 +268,7 @@ public class GatewayController : ControllerBase
 
             var url = $"/disponibilidade/atendente/{atendenteId}/horarios?data={data}";
             var response = await client.GetAsync(url);
-            var content = await response.Content.ReadAsAsync<object>();
-            return StatusCode((int)response.StatusCode, content);
+            return await ToActionResultAsync(response);
         }
         catch (Exception ex)
         {
@@ -277,6 +278,29 @@ public class GatewayController : ControllerBase
     }
 
     // =============== RELATORIOS SERVICE ===============
+
+    /// <summary>
+    /// GET - Carregar opções de filtros de relatório
+    /// </summary>
+    [HttpGet("relatorios/tipos")]
+    public async Task<IActionResult> GetRelatorioTipos()
+    {
+        try
+        {
+            var client = _httpClientFactory.CreateClient("Relatorios");
+            var token = Request.Headers["Authorization"].ToString();
+            if (!string.IsNullOrEmpty(token))
+                client.DefaultRequestHeaders.Add("Authorization", token);
+
+            var response = await client.GetAsync("/relatorios/tipos");
+            return await ToActionResultAsync(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao chamar Relatorios Service - GetRelatorioTipos");
+            return StatusCode(503, new { message = "Relatorios Service indisponível" });
+        }
+    }
 
     /// <summary>
     /// POST - Gerar relatório
@@ -292,8 +316,7 @@ public class GatewayController : ControllerBase
                 client.DefaultRequestHeaders.Add("Authorization", token);
 
             var response = await client.PostAsJsonAsync("/relatorios/gerar", filtros);
-            var content = await response.Content.ReadAsAsync<object>();
-            return StatusCode((int)response.StatusCode, content);
+            return await ToActionResultAsync(response);
         }
         catch (Exception ex)
         {

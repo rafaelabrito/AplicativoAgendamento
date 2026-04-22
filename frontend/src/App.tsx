@@ -11,6 +11,7 @@ const Agendamentos = lazy(() => import("./pages/Agendamentos"));
 const AgendamentoForm = lazy(() => import("./pages/AgendamentoForm"));
 const AgendamentoDetalhe = lazy(() => import("./pages/AgendamentoDetalhe"));
 const Disponibilidade = lazy(() => import("./pages/Disponibilidade"));
+const DisponibilidadeForm = lazy(() => import("./pages/DisponibilidadeForm"));
 const Relatorios = lazy(() => import("./pages/Relatorios"));
 
 function RouteFallback() {
@@ -41,7 +42,7 @@ export default function App() {
             </Route>
 
             <Route path="/agendamentos" element={<Agendamentos />} />
-            <Route element={<RoleRoute allowed={["Cliente"]} />}>
+            <Route element={<RoleRoute allowed={["Cliente", "Administrador"]} />}>
               <Route path="/agendamentos/novo" element={<AgendamentoForm />} />
             </Route>
             <Route element={<RoleRoute allowed={["Administrador", "Atendente"]} />}>
@@ -51,6 +52,8 @@ export default function App() {
 
             <Route element={<RoleRoute allowed={["Administrador"]} />}>
               <Route path="/disponibilidade" element={<Disponibilidade />} />
+              <Route path="/disponibilidade/nova" element={<DisponibilidadeForm />} />
+              <Route path="/disponibilidade/editar/:id" element={<DisponibilidadeForm />} />
             </Route>
             <Route element={<RoleRoute allowed={["Administrador", "Atendente"]} />}>
               <Route path="/relatorios" element={<Relatorios />} />

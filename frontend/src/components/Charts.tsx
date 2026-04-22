@@ -1,3 +1,31 @@
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import {
+	ResponsiveContainer,
+	PieChart,
+	Pie,
+	Cell,
+	Tooltip,
+	Legend,
+	BarChart,
+	Bar,
+	XAxis,
+	YAxis,
+	CartesianGrid,
+	LineChart,
+	Line,
+} from 'recharts';
 
-export { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid };
+export {
+	ResponsiveContainer,
+	PieChart,
+	Pie,
+	Cell,
+	Tooltip,
+	Legend,
+	BarChart,
+	Bar,
+	XAxis,
+	YAxis,
+	CartesianGrid,
+	LineChart,
+	Line,
+};

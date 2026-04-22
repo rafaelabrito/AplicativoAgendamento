@@ -43,7 +43,7 @@ namespace Tests
         public async Task EndpointAdmin_ComAdmin_DeveRetornarOk()
         {
             var client = _factory.CreateClient();
-            var token = await LoginAsync(client, "admin@admin.com", "Admin123!");
+            var token = await LoginAsync(client, "admin@admin.com", "teste@123");
             client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
             var response = await client.GetAsync("/admin");
@@ -76,7 +76,7 @@ namespace Tests
         public async Task Login_DeveRetornarDadosDoUsuario()
         {
             var client = _factory.CreateClient();
-            var response = await client.PostAsJsonAsync("/login", new LoginRequest { Email = "admin@admin.com", Password = "Admin123!" });
+            var response = await client.PostAsJsonAsync("/login", new LoginRequest { Email = "admin@admin.com", Password = "teste@123" });
 
             response.EnsureSuccessStatusCode();
 

@@ -19,10 +19,26 @@ services:
       timeout: 5s
       retries: 5
 
+  # ============= BACKEND BASE (SUPORTE) =============
+  backend-monolith:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend-monolith
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:80
+      ConnectionStrings__DefaultConnection: Host=host.docker.internal;Port=5432;Database=agendamentos_db;Username=postgres;Password=postgres123
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - agendamentos-network
+
   # ============= API GATEWAY (Orquestrador Central) =============
   api-gateway:
     build:
-      context: ./APIGateway
+      context: ./backend/microservices/APIGateway
       dockerfile: Dockerfile
     container_name: api-gateway
     ports:
@@ -34,107 +50,83 @@ services:
       Services__Disponibilidade: http://disponibilidade-service:5003
       Services__Relatorios: http://relatorios-service:5004
     depends_on:
+      - backend-monolith
       - usuarios-service
       - agendamentos-service
       - disponibilidade-service
       - relatorios-service
     networks:
       - agendamentos-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/swagger"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   # ============= MICROSERVIÇO: USUÁRIOS =============
   usuarios-service:
     build:
-      context: ./UsuariosService
+      context: ./backend/microservices/UsuariosService
       dockerfile: Dockerfile
     container_name: usuarios-service
     ports:
       - "5001:5001"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=agendamentos_db;Username=postgres;Password=postgres123
+      LegacyApiBaseUrl: http://backend-monolith
     depends_on:
-      postgres:
-        condition: service_healthy
+      backend-monolith:
+        condition: service_started
     networks:
       - agendamentos-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5001/swagger"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   # ============= MICROSERVIÇO: AGENDAMENTOS =============
   agendamentos-service:
     build:
-      context: ./AgendamentosService
+      context: ./backend/microservices/AgendamentosService
       dockerfile: Dockerfile
     container_name: agendamentos-service
     ports:
       - "5002:5002"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=agendamentos_db;Username=postgres;Password=postgres123
+      LegacyApiBaseUrl: http://backend-monolith
       Services__Disponibilidade: http://disponibilidade-service:5003
     depends_on:
-      postgres:
-        condition: service_healthy
+      backend-monolith:
+        condition: service_started
     networks:
       - agendamentos-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5002/swagger"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   # ============= MICROSERVIÇO: DISPONIBILIDADE =============
   disponibilidade-service:
     build:
-      context: ./DisponibilidadeService
+      context: ./backend/microservices/DisponibilidadeService
       dockerfile: Dockerfile
     container_name: disponibilidade-service
     ports:
       - "5003:5003"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=agendamentos_db;Username=postgres;Password=postgres123
+      LegacyApiBaseUrl: http://backend-monolith
     depends_on:
-      postgres:
-        condition: service_healthy
+      backend-monolith:
+        condition: service_started
     networks:
       - agendamentos-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5003/swagger"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   # ============= MICROSERVIÇO: RELATÓRIOS =============
   relatorios-service:
     build:
-      context: ./RelatóriosService
+      context: ./backend/microservices/RelatóriosService
       dockerfile: Dockerfile
     container_name: relatorios-service
     ports:
       - "5004:5004"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=agendamentos_db;Username=postgres;Password=postgres123
+      LegacyApiBaseUrl: http://backend-monolith
       Services__Agendamentos: http://agendamentos-service:5002
     depends_on:
-      postgres:
-        condition: service_healthy
+      backend-monolith:
+        condition: service_started
     networks:
       - agendamentos-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5004/swagger"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
 volumes:
   postgres_data:

@@ -45,8 +45,19 @@ export default function UsuarioForm() {
 
   useEffect(() => {
     if (isEdit) {
+      if (!isAdmin && user?.id !== id) {
+        navigate('/dashboard', { replace: true });
+        return;
+      }
       api.get(`/usuarios/${id}`).then(res => {
-        setForm({ ...form, ...res.data, senha: '', confirmeSenha: '' });
+        const data = res.data;
+        setForm({
+          ...form,
+          ...data,
+          dataNascimento: data.dataNascimento ? data.dataNascimento.slice(0, 10) : '',
+          senha: '',
+          confirmeSenha: '',
+        });
       });
     }
     // eslint-disable-next-line
@@ -74,7 +85,8 @@ export default function UsuarioForm() {
       if (!isValidCpfValue(form.cpf)) return 'CPF inválido';
       if (!form.dataNascimento) return 'Data de nascimento obrigatória';
       if (!form.telefone) return 'Telefone é obrigatório';
-      if (!form.telefone.match(/^\(\d{2}\) \d{4,5}-\d{4}$/)) return 'Telefone inválido';
+      const teleDigitos = form.telefone.replace(/\D/g, '');
+      if (teleDigitos.length < 10 || teleDigitos.length > 11) return 'Telefone inválido';
     }
     return '';
   };

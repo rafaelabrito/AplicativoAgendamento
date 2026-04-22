@@ -18,11 +18,12 @@ export default function AgendamentoDetalhe() {
   const [resumoAtendimento, setResumoAtendimento] = useState('');
   const [novaData, setNovaData] = useState('');
   const [novoHorario, setNovoHorario] = useState('');
+  const [currentTimestamp, setCurrentTimestamp] = useState(() => Date.now());
   const isAdmin = user?.tipo === 'Administrador';
   const isAtendente = user?.tipo === 'Atendente';
   const isCliente = user?.tipo === 'Cliente';
   const agendamentoDateTime = agendamento ? new Date(`${String(agendamento.data).slice(0, 10)}T${String(agendamento.horario).slice(0, 8)}`) : null;
-  const isFuture = agendamentoDateTime ? agendamentoDateTime.getTime() > Date.now() : false;
+  const isFuture = agendamentoDateTime ? agendamentoDateTime.getTime() > currentTimestamp : false;
 
   const isAtendenteResponsavel = isAtendente && agendamento?.atendenteId === user?.id;
   const isClienteDono = isCliente && agendamento?.clienteId === user?.id;
@@ -43,6 +44,14 @@ export default function AgendamentoDetalhe() {
     carregarAgendamento();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setCurrentTimestamp(Date.now());
+    }, 60000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
 
   const handleConfirmar = async () => {
     setError('');

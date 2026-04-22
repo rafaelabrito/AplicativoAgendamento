@@ -17,7 +17,9 @@ export default function AgendamentoForm() {
   const isEdit = !!id;
   const { user } = useAuth();
   const navigate = useNavigate();
+  const isAdmin = user?.tipo === 'Administrador' || user?.tipo === 'Admin';
   const [atendentes, setAtendentes] = useState<any[]>([]);
+  const [clientes, setClientes] = useState<any[]>([]);
   const [tiposSuporte, setTiposSuporte] = useState<string[]>(tiposAtendimento);
   const [horariosDisponiveis, setHorariosDisponiveis] = useState<string[]>([]);
   const [form, setForm] = useState({
@@ -38,6 +40,9 @@ export default function AgendamentoForm() {
 
   useEffect(() => {
     api.get('/usuarios?tipo=Atendente').then(res => setAtendentes(res.data));
+    if (isAdmin && !isEdit) {
+      api.get('/usuarios?tipo=Cliente').then(res => setClientes(res.data)).catch(() => setClientes([]));
+    }
     api.get('/tipos-atendimento')
       .then((res) => {
         const list = Array.isArray(res.data) ? res.data.filter((v: unknown) => typeof v === 'string' && v.trim()) : [];
@@ -114,8 +119,9 @@ export default function AgendamentoForm() {
     if (!form.tipoAtendimento) return 'Tipo de atendimento é obrigatório';
     if (!form.data) return 'Data é obrigatória';
     if (new Date(form.data) < new Date(new Date().toISOString().slice(0, 10))) return 'Data não pode ser anterior a hoje';
-    if (!form.horario) return 'Horário é obrigatório';
     if (!form.atendenteId) return 'Selecione um atendente';
+    if (!form.horario) return 'Horário é obrigatório';
+    if (isAdmin && !isEdit && !form.clienteId) return 'Selecione um cliente';
     return '';
   };
 
@@ -131,7 +137,7 @@ export default function AgendamentoForm() {
     try {
       const payload = {
         ...form,
-        clienteId: isEdit ? form.clienteId : user.id,
+        clienteId: isEdit ? form.clienteId : (isAdmin ? form.clienteId : user.id),
       };
 
       if (isEdit && id) {
@@ -151,8 +157,7 @@ export default function AgendamentoForm() {
     <Layout>
       <div style={{ display: 'flex', justifyContent: 'center' }}>
         <form
-          onSubmit={handleSubmit}
-          style={{
+          onSubmit={handleSubmit}          noValidate          style={{
             width: '100%',
             maxWidth: 900,
             background: '#fff',
@@ -215,6 +220,16 @@ export default function AgendamentoForm() {
               </select>
             </div>
 
+            {isAdmin && !isEdit && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={{ fontWeight: 700, color: '#334155' }}>Cliente <span style={{ color: '#dc2626' }}>*</span></label>
+                <select name="clienteId" value={form.clienteId} onChange={handleChange} style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px' }} required>
+                  <option value="">Selecione o Cliente</option>
+                  {clientes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+              </div>
+            )}
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <label style={{ fontWeight: 700, color: '#334155' }}>Atendente <span style={{ color: '#dc2626' }}>*</span></label>
               <select name="atendenteId" value={form.atendenteId} onChange={handleChange} style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px' }} required>
@@ -234,7 +249,7 @@ export default function AgendamentoForm() {
             </div>
           </div>
 
-          {error && <div style={{ marginTop: 14, color: '#b91c1c', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '10px 12px' }}>{error}</div>}
+          {error && <div data-testid="form-error" style={{ marginTop: 14, color: '#b91c1c', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '10px 12px' }}>{error}</div>}
 
           <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
             <button

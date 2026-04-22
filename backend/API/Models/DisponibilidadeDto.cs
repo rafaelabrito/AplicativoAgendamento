@@ -11,6 +11,7 @@ namespace API.Models
 
     public class UpdateDisponibilidadeRequest
     {
+        public Guid AtendenteId { get; set; }
         public DayOfWeek DiaSemana { get; set; }
         public TimeSpan HoraInicio { get; set; }
         public TimeSpan HoraFim { get; set; }

@@ -14,6 +14,7 @@ namespace Tests
     public class RelatorioAgendamentosApiTests : IClassFixture<WebApplicationFactory<Program>>
     {
         private readonly HttpClient _client;
+        private readonly WebApplicationFactory<Program> _factory;
 
 
         private string GenerateJwtToken()
@@ -43,6 +44,7 @@ namespace Tests
 
         public RelatorioAgendamentosApiTests(WebApplicationFactory<Program> factory)
         {
+            _factory = factory;
             _client = factory.CreateClient();
             var jwt = GenerateJwtToken();
             _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", jwt);
@@ -110,9 +112,14 @@ namespace Tests
             };
             var response = await _client.PostAsJsonAsync("/agendamentos/relatorio", req);
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.Equal("text/csv", response.Content.Headers.ContentType.MediaType);
+            if (response.Content is null)
+                throw new Xunit.Sdk.XunitException("Resposta sem conteudo para exportacao CSV.");
+
+            var mediaType = response.Content.Headers.ContentType?.MediaType;
+            Assert.Equal("text/csv", mediaType);
+
             var content = await response.Content.ReadAsStringAsync();
-            Assert.Contains("Id,Titulo,Descricao", content);
+            Assert.Contains("NomeCliente,NomeAtendente,DataAtendimento", content);
         }
 
         [Fact]
@@ -123,7 +130,12 @@ namespace Tests
             };
             var response = await _client.PostAsJsonAsync("/agendamentos/relatorio", req);
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.Equal("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", response.Content.Headers.ContentType.MediaType);
+            if (response.Content is null)
+                throw new Xunit.Sdk.XunitException("Resposta sem conteudo para exportacao XLSX.");
+
+            var mediaType = response.Content.Headers.ContentType?.MediaType;
+            Assert.Equal("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", mediaType);
+
             var bytes = await response.Content.ReadAsByteArrayAsync();
             Assert.True(bytes.Length > 100); // Deve ser um arquivo real
         }
@@ -136,6 +148,101 @@ namespace Tests
             };
             var response = await _client.PostAsJsonAsync("/agendamentos/relatorio", req);
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+        [Fact]
+        public async Task Relatorio_TipoEstatisticasAtendente_RetornaEstatisticas()
+        {
+            var req = new AgendamentoReportRequest { ReportType = "estatisticas-atendente" };
+            var response = await _client.PostAsJsonAsync("/agendamentos/relatorio", req);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.NotNull(body);
+        }
+
+        [Fact]
+        public async Task Relatorio_TipoPorStatus_RetornaAgrupamentoPorStatus()
+        {
+            var req = new AgendamentoReportRequest { ReportType = "por-status" };
+            var response = await _client.PostAsJsonAsync("/agendamentos/relatorio", req);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.Contains("Confirmado", body);
+        }
+
+        [Fact]
+        public async Task Relatorio_TipoPorTipo_RetornaAgrupamentoPorTipoAtendimento()
+        {
+            var req = new AgendamentoReportRequest { ReportType = "por-tipo" };
+            var response = await _client.PostAsJsonAsync("/agendamentos/relatorio", req);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.Contains("Online", body);
+        }
+
+        [Fact]
+        public async Task Relatorio_TipoTotalPorCliente_RetornaAgrupamentoPorCliente()
+        {
+            var req = new AgendamentoReportRequest { ReportType = "total-por-cliente" };
+            var response = await _client.PostAsJsonAsync("/agendamentos/relatorio", req);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.NotNull(body);
+        }
+
+        [Fact]
+        public async Task Relatorio_TipoTaxaRealizadosCancelados_RetornaTaxa()
+        {
+            var req = new AgendamentoReportRequest { ReportType = "taxa-realizados-cancelados" };
+            var response = await _client.PostAsJsonAsync("/agendamentos/relatorio", req);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.Contains("Realizados", body);
+            Assert.Contains("Cancelados", body);
+        }
+
+        [Fact]
+        public async Task Relatorio_FiltraPorPeriodo_RetornaApenasDentroDoPeriodo()
+        {
+            var hoje = DateTime.UtcNow.Date;
+            var req = new AgendamentoReportRequest {
+                DataInicio = hoje,
+                DataFim = hoje
+            };
+            var response = await _client.PostAsJsonAsync("/agendamentos/relatorio", req);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task Relatorio_SemAutenticacao_Retorna401()
+        {
+            var clientSemToken = _factory.CreateClient(new WebApplicationFactoryClientOptions
+            {
+                AllowAutoRedirect = false
+            });
+            var req = new AgendamentoReportRequest();
+            var response = await clientSemToken.PostAsJsonAsync("/agendamentos/relatorio", req);
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task RelatorioOpcoes_Admin_RetornaClientesEAtendentes()
+        {
+            var response = await _client.GetAsync("/agendamentos/relatorio/opcoes");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.Contains("clientes", body, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("atendentes", body, StringComparison.OrdinalIgnoreCase);
+        }
+
+        [Fact]
+        public async Task RelatorioOpcoes_SemAutenticacao_Retorna401()
+        {
+            var clientSemToken = _factory.CreateClient(new WebApplicationFactoryClientOptions
+            {
+                AllowAutoRedirect = false
+            });
+            var response = await clientSemToken.GetAsync("/agendamentos/relatorio/opcoes");
+            Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         }
     }
 }

@@ -26,6 +26,9 @@ O projeto foi construído com foco em separação de responsabilidades, regras d
 - Relatórios com múltiplos tipos e filtros por cliente, atendente, período, tipo e status
 - Exportação de relatórios em CSV e XLSX
 
+  <img width="1347" height="648" alt="dashboard" src="https://github.com/user-attachments/assets/bf714d3b-2e06-469b-b1aa-c90e1a89689d" />
+
+
 ## Stack Tecnológica
 
 - Backend: .NET 8, ASP.NET Core Minimal API, Entity Framework Core
@@ -43,6 +46,7 @@ flowchart LR
     F -->|HTTP + JWT| B[API .NET 8]
     B -->|EF Core| D[(PostgreSQL)]
 ```
+<img width="1355" height="732" alt="image" src="https://github.com/user-attachments/assets/740d19e2-6e6e-4de1-9a68-eb4bf703ab46" />
 
 ## Estrutura do Projeto
 
@@ -100,6 +104,7 @@ Se aparecer warning de `orphan containers`, rode:
 docker compose -f docker-compose.yml down --remove-orphans
 docker compose -f docker-compose.microservices.yml down --remove-orphans
 ```
+<img width="1344" height="646" alt="swagger" src="https://github.com/user-attachments/assets/d32908e2-a0d6-46bf-9049-529741b66980" />
 
 ### Local sem Docker (resumo)
 

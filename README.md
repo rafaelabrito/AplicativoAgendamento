@@ -57,6 +57,8 @@ flowchart LR
 - [docker-compose.microservices.yml](docker-compose.microservices.yml): stack de microsserviços
 - [PLAN.md](PLAN.md): plano, checklist e rastreabilidade dos requisitos
 
+<img width="1360" height="768" alt="image" src="https://github.com/user-attachments/assets/bbe7016e-a2d7-41ad-b292-1c01f5de276d" />
+
 ## Comandos Rápidos
 
 ### Docker monolito (frontend + backend + banco)

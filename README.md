@@ -3,6 +3,8 @@
 Aplicação web para gestão de usuários, agendamentos, disponibilidade de agenda e relatórios, com autenticação JWT, controle por perfil e execução em containers Docker.
 
 Em ambiente de desenvolvimento, o backend aplica as migrations e recria automaticamente a base demo no startup. Isso vale tanto para execução local quanto para Docker usando a configuração padrão de desenvolvimento.
+<img width="1341" height="648" alt="agendamento2" src="https://github.com/user-attachments/assets/49994d92-365e-4b6b-9283-256f04d90777" />
+
 
 ## Visão Geral
 

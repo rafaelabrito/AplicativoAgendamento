@@ -26,7 +26,8 @@ O projeto foi construído com foco em separação de responsabilidades, regras d
 - Relatórios com múltiplos tipos e filtros por cliente, atendente, período, tipo e status
 - Exportação de relatórios em CSV e XLSX
 
-  <img width="1347" height="648" alt="dashboard" src="https://github.com/user-attachments/assets/bf714d3b-2e06-469b-b1aa-c90e1a89689d" />
+ <img width="1347" height="649" alt="image" src="https://github.com/user-attachments/assets/ab394902-bf8c-4c3e-bf84-9e37fee1f015" />
+
 
 
 ## Stack Tecnológica
@@ -47,6 +48,8 @@ flowchart LR
     B -->|EF Core| D[(PostgreSQL)]
 ```
 <img width="1355" height="732" alt="image" src="https://github.com/user-attachments/assets/740d19e2-6e6e-4de1-9a68-eb4bf703ab46" />
+<img width="1360" height="768" alt="image" src="https://github.com/user-attachments/assets/e3beb038-1613-4ac5-9fd5-284f481a4ef5" />
+
 
 ## Estrutura do Projeto
 

@@ -9,6 +9,7 @@ namespace API.Models
         public string TipoAtendimento { get; set; } = string.Empty;
         public DateTime Data { get; set; }
         public TimeSpan Horario { get; set; }
+        public string? Status { get; set; }
         public string? Observacoes { get; set; }
     }
 }

@@ -5,6 +5,7 @@ import Layout from '../components/Layout';
 import api from '../services/api';
 import ConfirmModal from '../components/ConfirmModal';
 import { useAuth } from '../store/auth';
+import BrDateInput from '../components/BrDateInput';
 
 const diaLabel: Record<string, string> = {
   Sunday: 'Domingo',
@@ -52,11 +53,31 @@ const formatarProximaData = (diaSemana: string) => {
   return dataBase.toLocaleDateString('pt-BR');
 };
 
+const formatarDataIsoBr = (isoDate: string) => {
+  if (!isoDate || isoDate.length < 10) return '-';
+  const [ano, mes, dia] = isoDate.slice(0, 10).split('-');
+  if (!ano || !mes || !dia) return '-';
+  return `${dia}/${mes}/${ano}`;
+};
+
 const obterDiaSemanaDaData = (dateValue: string) => {
   if (!dateValue) return null;
   const date = new Date(`${dateValue}T12:00:00`);
   if (Number.isNaN(date.getTime())) return null;
   return date.getDay();
+};
+
+const obterDataExibicao = (diaSemana: string, dataSelecionada: string) => {
+  if (!dataSelecionada) return formatarProximaData(diaSemana);
+
+  const diaDaDataSelecionada = obterDiaSemanaDaData(dataSelecionada);
+  const diaDaDisponibilidade = diaSemanaNumero[String(diaSemana)];
+
+  if (diaDaDataSelecionada !== null && diaDaDataSelecionada === diaDaDisponibilidade) {
+    return formatarDataIsoBr(dataSelecionada);
+  }
+
+  return formatarProximaData(diaSemana);
 };
 
 export default function Disponibilidade() {
@@ -67,6 +88,11 @@ export default function Disponibilidade() {
   const deleteMut = useDeleteDisponibilidade();
   const [atendentes, setAtendentes] = useState<Array<{ id: string; nome: string }>>([]);
   const [filtros, setFiltros] = useState({
+    termo: '',
+    dataSelecionada: '',
+    ativo: '',
+  });
+  const [filtrosAplicados, setFiltrosAplicados] = useState({
     termo: '',
     dataSelecionada: '',
     ativo: '',
@@ -115,23 +141,23 @@ export default function Disponibilidade() {
   }, {} as Record<string, string>);
 
   const listaFiltrada = useMemo(() => {
-    const termo = filtros.termo.trim().toLowerCase();
+    const termo = filtrosAplicados.termo.trim().toLowerCase();
     return (data || []).filter((d) => {
       const atendenteKey = String(d.atendenteId || '').toLowerCase();
       const atendenteNome = (nomePorId[atendenteKey] || '').toLowerCase();
       const dia = String(diaLabel[String(d.diaSemana)] || d.diaSemana).toLowerCase();
-      const data = formatarProximaData(String(d.diaSemana)).toLowerCase();
+      const dataExibicao = obterDataExibicao(String(d.diaSemana), filtrosAplicados.dataSelecionada).toLowerCase();
       const ativoValor = d.ativo ? 'sim' : 'nao';
-      const diaFiltroNumero = obterDiaSemanaDaData(filtros.dataSelecionada);
+      const diaFiltroNumero = obterDiaSemanaDaData(filtrosAplicados.dataSelecionada);
       const diaDaDisponibilidade = diaSemanaNumero[String(d.diaSemana)];
 
-      const termoOk = !termo || atendenteNome.includes(termo) || dia.includes(termo) || data.includes(termo);
+      const termoOk = !termo || atendenteNome.includes(termo) || dia.includes(termo) || dataExibicao.includes(termo);
       const diaOk = diaFiltroNumero === null || diaDaDisponibilidade === diaFiltroNumero;
-      const ativoOk = !filtros.ativo || ativoValor === filtros.ativo;
+      const ativoOk = !filtrosAplicados.ativo || ativoValor === filtrosAplicados.ativo;
 
       return termoOk && diaOk && ativoOk;
     });
-  }, [data, filtros.termo, filtros.dataSelecionada, filtros.ativo, nomePorId]);
+  }, [data, filtrosAplicados.termo, filtrosAplicados.dataSelecionada, filtrosAplicados.ativo, nomePorId]);
 
   const totalPaginas = Math.max(1, Math.ceil(listaFiltrada.length / itensPorPagina));
   const paginaSegura = Math.min(paginaAtual, totalPaginas);
@@ -179,7 +205,7 @@ export default function Disponibilidade() {
 
   useEffect(() => {
     setPaginaAtual(1);
-  }, [filtros.termo, filtros.dataSelecionada, filtros.ativo]);
+  }, [filtrosAplicados.termo, filtrosAplicados.dataSelecionada, filtrosAplicados.ativo]);
 
   useEffect(() => {
     if (paginaAtual > totalPaginas) {
@@ -192,12 +218,21 @@ export default function Disponibilidade() {
     setFiltros((f) => ({ ...f, [name]: value }));
   };
 
+  const handlePesquisar = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPaginaAtual(1);
+    setFiltrosAplicados({ ...filtros });
+  };
+
   const limparFiltros = () => {
-    setFiltros({
+    const limpo = {
       termo: '',
       dataSelecionada: '',
       ativo: '',
-    });
+    };
+    setFiltros(limpo);
+    setFiltrosAplicados(limpo);
+    setPaginaAtual(1);
   };
 
   const handleNew = () => {
@@ -266,7 +301,7 @@ export default function Disponibilidade() {
         }}
       >
         <form
-          onSubmit={(e) => e.preventDefault()}
+          onSubmit={handlePesquisar}
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
@@ -288,12 +323,11 @@ export default function Disponibilidade() {
 
           <div>
             <label htmlFor="dataSelecionada" style={{ display: 'block', marginBottom: 6, color: '#334155', fontWeight: 700, fontSize: 14 }}>Data</label>
-            <input
+            <BrDateInput
               id="dataSelecionada"
               name="dataSelecionada"
-              type="date"
               value={filtros.dataSelecionada}
-              onChange={handleFiltro}
+              onValueChange={(value) => setFiltros((f) => ({ ...f, dataSelecionada: value }))}
               style={{ width: '100%', border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px' }}
             />
           </div>
@@ -314,6 +348,19 @@ export default function Disponibilidade() {
           </div>
 
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button
+              type="submit"
+              style={{
+                background: '#4f46e5',
+                color: '#fff',
+                border: 0,
+                borderRadius: 10,
+                padding: '10px 14px',
+                fontWeight: 700,
+              }}
+            >
+              Buscar
+            </button>
             <button
               type="button"
               onClick={limparFiltros}
@@ -356,7 +403,7 @@ export default function Disponibilidade() {
                     <td style={{ padding: '14px 16px', color: '#0f172a', borderTop: '1px solid #f1f5f9', verticalAlign: 'middle' }}>{atendenteNome}</td>
                     <td style={{ padding: '14px 16px', color: '#0f172a', borderTop: '1px solid #f1f5f9', verticalAlign: 'middle' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <span>{formatarProximaData(String(d.diaSemana))}</span>
+                        <span>{obterDataExibicao(String(d.diaSemana), filtrosAplicados.dataSelecionada)}</span>
                         <span style={{ color: '#64748b', fontSize: 12 }}>{diaLabel[String(d.diaSemana)] || d.diaSemana}</span>
                       </div>
                     </td>

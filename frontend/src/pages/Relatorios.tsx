@@ -4,6 +4,7 @@ import { getRelatorioAgendamentos, exportarRelatorioAgendamentos } from '../serv
 import api from '../services/api';
 import { getApiErrorMessage } from '../services/error';
 import { useAuth } from '../store/auth';
+import BrDateInput from '../components/BrDateInput';
 
 interface AgendamentoRelatorio {
   id: string;
@@ -356,11 +357,17 @@ export default function Relatorios() {
           </div>
           <div>
             <label htmlFor="dataInicio" style={labelStyle}>Data Inicial</label>
-            <input id="dataInicio" name="dataInicio" type="date" value={filtros.dataInicio} onChange={handleFiltro} style={fieldStyle} />
+            <BrDateInput id="dataInicio" name="dataInicio" value={filtros.dataInicio} onValueChange={(value) => {
+              setFiltros((f) => ({ ...f, dataInicio: value }));
+              setRelatorioConfig((c) => ({ ...c, pagina: 1 }));
+            }} style={fieldStyle} />
           </div>
           <div>
             <label htmlFor="dataFim" style={labelStyle}>Data Final</label>
-            <input id="dataFim" name="dataFim" type="date" value={filtros.dataFim} onChange={handleFiltro} style={fieldStyle} />
+            <BrDateInput id="dataFim" name="dataFim" value={filtros.dataFim} onValueChange={(value) => {
+              setFiltros((f) => ({ ...f, dataFim: value }));
+              setRelatorioConfig((c) => ({ ...c, pagina: 1 }));
+            }} style={fieldStyle} />
           </div>
         </div>
 

@@ -4,6 +4,7 @@ import Layout from '../components/Layout';
 import api from '../services/api';
 import { useAuth } from '../store/auth';
 import { getApiErrorMessage } from '../services/error';
+import BrDateInput from '../components/BrDateInput';
 
 export default function AgendamentoDetalhe() {
   const { id } = useParams();
@@ -174,7 +175,7 @@ export default function AgendamentoDetalhe() {
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgba(15,23,42,0.06)', padding: 16, marginBottom: 12 }}>
           <h2 style={{ margin: 0, marginBottom: 10, fontSize: 24, fontWeight: 700, color: '#0f172a' }}>Reagendar</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
-            <input type="date" value={novaData} onChange={(e) => setNovaData(e.target.value)} style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px' }} />
+            <BrDateInput value={novaData} onValueChange={setNovaData} style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px' }} />
             <input type="time" value={novoHorario} onChange={(e) => setNovoHorario(e.target.value)} style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px' }} />
             <input
               placeholder="Justificativa de reagendamento"
@@ -245,14 +246,23 @@ export default function AgendamentoDetalhe() {
         </div>
       )}
 
-      {isAdmin && (
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         <button
-          style={{ background: '#2563eb', color: '#fff', border: 0, borderRadius: 10, padding: '10px 14px', fontWeight: 700 }}
-          onClick={() => navigate(`/agendamentos/editar/${id}`)}
+          style={{ background: '#fff', color: '#334155', border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 14px', fontWeight: 700 }}
+          onClick={() => navigate('/agendamentos')}
         >
-          Editar
+          Fechar
         </button>
-      )}
+
+        {isAdmin && (
+          <button
+            style={{ background: '#2563eb', color: '#fff', border: 0, borderRadius: 10, padding: '10px 14px', fontWeight: 700 }}
+            onClick={() => navigate(`/agendamentos/editar/${id}`)}
+          >
+            Editar
+          </button>
+        )}
+      </div>
     </Layout>
   );
 }

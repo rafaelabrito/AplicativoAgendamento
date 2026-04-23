@@ -4,6 +4,7 @@ import InputMask from 'react-input-mask';
 import api from '../services/api';
 import { useAuth } from '../store/auth';
 import Layout from '../components/Layout';
+import BrDateInput from '../components/BrDateInput';
 
 function isValidCpfValue(value: string) {
   const digits = value.replace(/\D/g, '');
@@ -223,14 +224,12 @@ export default function UsuarioForm() {
               />
 
               <label style={{ fontWeight: 700, color: '#334155' }}>Data de Nascimento <span style={{ color: '#dc2626' }}>*</span></label>
-              <input
+              <BrDateInput
                 name="dataNascimento"
                 value={form.dataNascimento}
-                onChange={handleChange}
-                placeholder="Data de Nascimento"
+                onValueChange={(value) => setForm((f) => ({ ...f, dataNascimento: value }))}
                 style={{ border: error.includes('nascimento') ? '1px solid #ef4444' : '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px' }}
                 required
-                type="date"
               />
 
               <label style={{ fontWeight: 700, color: '#334155' }}>Telefone <span style={{ color: '#dc2626' }}>*</span></label>

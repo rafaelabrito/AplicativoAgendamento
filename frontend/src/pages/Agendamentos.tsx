@@ -4,6 +4,7 @@ import api from '../services/api';
 import { useAuth } from '../store/auth';
 import { useNavigate } from 'react-router-dom';
 import { getApiErrorMessage } from '../services/error';
+import BrDateInput from '../components/BrDateInput';
 
 interface Agendamento {
   id: string;
@@ -81,6 +82,13 @@ const horarioSlots = Array.from({ length: 28 }, (_, i) => {
 const formatDateBr = (value: Date | string) => {
   const date = value instanceof Date ? value : new Date(value);
   return date.toLocaleDateString('pt-BR');
+};
+
+const formatIsoDateBr = (value?: string) => {
+  const iso = String(value || '').slice(0, 10);
+  const [year, month, day] = iso.split('-');
+  if (!year || !month || !day) return '-';
+  return `${day}/${month}/${year}`;
 };
 
 export default function Agendamentos() {
@@ -489,8 +497,8 @@ export default function Agendamentos() {
           <option value="Cancelado">Cancelado</option>
           <option value="Realizado">Realizado</option>
         </select>
-        <input name="dataInicio" type="date" value={filtros.dataInicio} onChange={handleFiltro} style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px' }} />
-        <input name="dataFim" type="date" value={filtros.dataFim} onChange={handleFiltro} style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px' }} />
+        <BrDateInput name="dataInicio" value={filtros.dataInicio} onValueChange={(value) => setFiltros((f) => ({ ...f, dataInicio: value }))} style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px' }} />
+        <BrDateInput name="dataFim" value={filtros.dataFim} onValueChange={(value) => setFiltros((f) => ({ ...f, dataFim: value }))} style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px' }} />
         <button type="submit" style={{ background: '#4f46e5', color: '#fff', border: 0, borderRadius: 10, padding: '10px 14px', fontWeight: 700 }}>Filtrar</button>
         <div style={{ display: 'flex', alignItems: 'center', color: '#64748b', fontSize: 13, fontWeight: 600 }}>
           {agendamentos.length} resultado(s)
@@ -521,7 +529,7 @@ export default function Agendamentos() {
                   <td style={{ padding: '12px', color: '#334155', borderTop: '1px solid #f1f5f9' }}>{getClienteNome(a)}</td>
                   <td style={{ padding: '12px', color: '#334155', borderTop: '1px solid #f1f5f9' }}>{getAtendenteNome(a)}</td>
                   <td style={{ padding: '12px', color: '#334155', borderTop: '1px solid #f1f5f9' }}>{a.tipoAtendimento}</td>
-                  <td style={{ padding: '12px', color: '#334155', borderTop: '1px solid #f1f5f9' }}>{String(a.data).slice(0, 10)}</td>
+                  <td style={{ padding: '12px', color: '#334155', borderTop: '1px solid #f1f5f9' }}>{formatIsoDateBr(a.data)}</td>
                   <td style={{ padding: '12px', color: '#334155', borderTop: '1px solid #f1f5f9' }}>{String(a.horario).slice(0, 5)}</td>
                   <td style={{ padding: '12px', borderTop: '1px solid #f1f5f9' }}>
                     <span style={{ display: 'inline-block', borderRadius: 999, background: '#eef2ff', color: '#4338ca', fontSize: 12, fontWeight: 700, padding: '4px 10px' }}>{a.status}</span>

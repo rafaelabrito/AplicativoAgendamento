@@ -3,7 +3,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Layout from '../components/Layout';
 import api from '../services/api';
 import { useAuth } from '../store/auth';
-import { PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from '../components/Charts';
+import { PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, LabelList, XAxis, YAxis, CartesianGrid, LineChart, Line } from '../components/Charts';
+import BrDateInput from '../components/BrDateInput';
 
 interface Usuario {
   id: string;
@@ -227,33 +228,20 @@ export default function Dashboard() {
             <div style={{ background: '#fff', borderRadius: 18, border: '1px solid #e2e8f0', boxShadow: '0 8px 24px rgba(15,23,42,0.06)', padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <div style={{ fontSize: 42, fontWeight: 800, color: '#4338ca', lineHeight: 1 }}>{agendamentos.length}</div>
               <div style={{ fontSize: 22, fontWeight: 700, marginTop: 10, color: '#0f172a' }}>Agendamentos</div>
-              <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}>
-                {statusLabels.map(s => (
-                  <span
-                    key={s.key}
-                    style={{
-                      fontSize: 14,
-                      color: '#334155',
-                      background: '#f1f5f9',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: 999,
-                      padding: '4px 10px',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {s.label}: {statusCounts[s.key]}
-                  </span>
-                ))}
-              </div>
-              <ChartSurface>
+              <ChartSurface height={250}>
                 {({ width, height }) => (
-                  <BarChart width={width} height={height} data={agendamentoBarData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <BarChart width={width} height={height} data={agendamentoBarData} margin={{ top: 24, right: 10, left: 0, bottom: 14 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="status" />
+                    <XAxis dataKey="status" interval={0} height={40} tick={{ fontSize: 11, fill: '#64748b' }} />
                     <YAxis allowDecimals={false} />
                     <Tooltip />
-                    <Legend />
-                    <Bar dataKey="total" fill="#7c3aed" />
+                    <Bar dataKey="total" fill="#7c3aed" barSize={38}>
+                      <LabelList
+                        dataKey="total"
+                        position="top"
+                        style={{ fill: '#334155', fontWeight: 700, fontSize: 12 }}
+                      />
+                    </Bar>
                   </BarChart>
                 )}
               </ChartSurface>
@@ -280,22 +268,12 @@ export default function Dashboard() {
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
                 <label style={{ display: 'grid', gap: 4, color: '#334155', fontSize: 13, fontWeight: 700 }}>
                   Data inicial
-                  <input
-                    type="date"
-                    value={periodoInicio}
-                    onChange={(e) => setPeriodoInicio(e.target.value)}
-                    style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px', minWidth: 170 }}
-                  />
+                  <BrDateInput value={periodoInicio} onValueChange={setPeriodoInicio} style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px', minWidth: 170 }} />
                 </label>
 
                 <label style={{ display: 'grid', gap: 4, color: '#334155', fontSize: 13, fontWeight: 700 }}>
                   Data final
-                  <input
-                    type="date"
-                    value={periodoFim}
-                    onChange={(e) => setPeriodoFim(e.target.value)}
-                    style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px', minWidth: 170 }}
-                  />
+                  <BrDateInput value={periodoFim} onValueChange={setPeriodoFim} style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px', minWidth: 170 }} />
                 </label>
 
                 <label style={{ display: 'grid', gap: 4, color: '#334155', fontSize: 13, fontWeight: 700 }}>

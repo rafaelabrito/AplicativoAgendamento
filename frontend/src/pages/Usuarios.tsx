@@ -23,16 +23,29 @@ export default function Usuarios() {
   const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState<string|null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [filtros, setFiltros] = useState({ termo: '', tipo: '' });
+  const [filtrosAplicados, setFiltrosAplicados] = useState({ termo: '', tipo: '' });
   const [paginaAtual, setPaginaAtual] = useState(1);
   const navigate = useNavigate();
   const isAdmin = user?.tipo === 'Administrador';
   const itensPorPagina = 8;
 
-  const totalPaginas = Math.max(1, Math.ceil(usuarios.length / itensPorPagina));
+  const usuariosFiltrados = usuarios.filter((u) => {
+    const termo = filtrosAplicados.termo.trim().toLowerCase();
+    const tipo = filtrosAplicados.tipo;
+    const termoOk = !termo
+      || u.nome.toLowerCase().includes(termo)
+      || u.email.toLowerCase().includes(termo)
+      || u.tipo.toLowerCase().includes(termo);
+    const tipoOk = !tipo || u.tipo === tipo;
+    return termoOk && tipoOk;
+  });
+
+  const totalPaginas = Math.max(1, Math.ceil(usuariosFiltrados.length / itensPorPagina));
   const paginaSegura = Math.min(paginaAtual, totalPaginas);
   const inicio = (paginaSegura - 1) * itensPorPagina;
   const fim = inicio + itensPorPagina;
-  const usuariosPaginados = usuarios.slice(inicio, fim);
+  const usuariosPaginados = usuariosFiltrados.slice(inicio, fim);
 
   const fetchUsuarios = () => {
     setLoading(true);
@@ -82,6 +95,19 @@ export default function Usuarios() {
     }
   };
 
+  const handlePesquisar = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setFiltrosAplicados(filtros);
+    setPaginaAtual(1);
+  };
+
+  const handleLimpar = () => {
+    const filtrosLimpos = { termo: '', tipo: '' };
+    setFiltros(filtrosLimpos);
+    setFiltrosAplicados(filtrosLimpos);
+    setPaginaAtual(1);
+  };
+
   return (
     <Layout>
       <div
@@ -115,6 +141,89 @@ export default function Usuarios() {
           </button>
         )}
       </div>
+
+      <form
+        onSubmit={handlePesquisar}
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: 12,
+          background: '#fff',
+          border: '1px solid #e2e8f0',
+          borderRadius: 14,
+          padding: 14,
+          marginBottom: 16,
+        }}
+      >
+        <input
+          type="text"
+          placeholder="Buscar por nome, email ou tipo"
+          value={filtros.termo}
+          onChange={(e) => setFiltros((f) => ({ ...f, termo: e.target.value }))}
+          style={{
+            flex: '1 1 260px',
+            border: '1px solid #cbd5e1',
+            borderRadius: 10,
+            padding: '10px 12px',
+            color: '#0f172a',
+            fontSize: 14,
+            width: '100%',
+          }}
+        />
+
+        <select
+          value={filtros.tipo}
+          onChange={(e) => setFiltros((f) => ({ ...f, tipo: e.target.value }))}
+          style={{
+            flex: '1 1 200px',
+            border: '1px solid #cbd5e1',
+            borderRadius: 10,
+            padding: '10px 12px',
+            color: '#0f172a',
+            fontSize: 14,
+            width: '100%',
+            background: '#fff',
+          }}
+        >
+          <option value="">Todos os tipos</option>
+          <option value="Administrador">Administrador</option>
+          <option value="Atendente">Atendente</option>
+          <option value="Cliente">Cliente</option>
+        </select>
+
+        <button
+          type="submit"
+          style={{
+            background: '#4f46e5',
+            color: '#fff',
+            border: '1px solid #4f46e5',
+            borderRadius: 10,
+            padding: '10px 14px',
+            fontWeight: 700,
+            fontSize: 14,
+          }}
+        >
+          Buscar
+        </button>
+
+        <button
+          type="button"
+          onClick={handleLimpar}
+          style={{
+            background: '#fff',
+            color: '#334155',
+            border: '1px solid #cbd5e1',
+            borderRadius: 10,
+            padding: '10px 14px',
+            fontWeight: 700,
+            fontSize: 14,
+          }}
+        >
+          Limpar
+        </button>
+      </form>
+
       {loading ? (
         <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 8px 24px rgba(15,23,42,0.06)', border: '1px solid #e2e8f0', padding: 24 }}>Carregando...</div>
       ) : (
@@ -170,7 +279,7 @@ export default function Usuarios() {
                   </td>
                 </tr>
               ))}
-              {usuarios.length === 0 && (
+              {usuariosFiltrados.length === 0 && (
                 <tr>
                   <td style={{ padding: 24, color: '#64748b', textAlign: 'center' }} colSpan={4}>Nenhum usuário encontrado.</td>
                 </tr>
@@ -178,7 +287,7 @@ export default function Usuarios() {
             </tbody>
           </table>
 
-          {usuarios.length > 0 && (
+          {usuariosFiltrados.length > 0 && (
             <div
               style={{
                 display: 'flex',
@@ -192,7 +301,7 @@ export default function Usuarios() {
               }}
             >
               <span style={{ color: '#475569', fontSize: 14 }}>
-                Exibindo {inicio + 1} - {Math.min(fim, usuarios.length)} de {usuarios.length}
+                Exibindo {inicio + 1} - {Math.min(fim, usuariosFiltrados.length)} de {usuariosFiltrados.length}
               </span>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>

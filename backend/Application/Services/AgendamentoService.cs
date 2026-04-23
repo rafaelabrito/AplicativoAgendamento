@@ -1,5 +1,6 @@
 using Application.Interfaces;
 using Domain.Entities;
+using System;
 
 namespace Application.Services
 {
@@ -21,19 +22,19 @@ namespace Application.Services
             TimeSpan horario,
             Guid? ignoreAgendamentoId = null)
         {
-            var dataHora = data.Date + horario;
+            var dataUtc = DateTime.SpecifyKind(data.Date, DateTimeKind.Utc);
             // Nota: Validação de data no passado removida para permitir testes
             // A restrição será enforçada via regras de negócio nas operações de confirmação/realização
 
             // Não permitir conflito para o mesmo cliente
-            if (await _repo.ClientePossuiConflitoAsync(clienteId, data, horario, ignoreAgendamentoId))
+            if (await _repo.ClientePossuiConflitoAsync(clienteId, dataUtc, horario, ignoreAgendamentoId))
                 return (false, "Já existe um agendamento para este cliente neste horário.");
 
             // Não permitir conflito para o mesmo atendente
-            if (await _repo.AtendentePossuiConflitoAsync(atendenteId, data, horario, ignoreAgendamentoId))
+            if (await _repo.AtendentePossuiConflitoAsync(atendenteId, dataUtc, horario, ignoreAgendamentoId))
                 return (false, "O atendente já possui um agendamento neste horário.");
 
-            if (!await _disponibilidadeRepository.HorarioDisponivelAsync(atendenteId, data, horario))
+            if (!await _disponibilidadeRepository.HorarioDisponivelAsync(atendenteId, dataUtc, horario))
                 return (false, "O horário informado não está disponível na agenda do atendente.");
 
             return (true, null);

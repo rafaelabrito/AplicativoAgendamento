@@ -249,10 +249,19 @@ using Microsoft.EntityFrameworkCore;
                 query = query.Where(a => a.Status == status);
             if (!string.IsNullOrEmpty(req.TipoAtendimento))
                 query = query.Where(a => a.TipoAtendimento == req.TipoAtendimento);
-            if (req.DataInicio.HasValue)
-                query = query.Where(a => a.Data >= req.DataInicio.Value);
-            if (req.DataFim.HasValue)
-                query = query.Where(a => a.Data <= req.DataFim.Value);
+
+            // Normaliza datas para UTC e aplica DataFim inclusiva (até 23:59 do dia informado)
+            DateTime? dataInicioUtc = req.DataInicio.HasValue
+                ? DateTime.SpecifyKind(req.DataInicio.Value.Date, DateTimeKind.Utc)
+                : null;
+            DateTime? dataFimUtcExclusive = req.DataFim.HasValue
+                ? DateTime.SpecifyKind(req.DataFim.Value.Date.AddDays(1), DateTimeKind.Utc)
+                : null;
+
+            if (dataInicioUtc.HasValue)
+                query = query.Where(a => a.Data >= dataInicioUtc.Value);
+            if (dataFimUtcExclusive.HasValue)
+                query = query.Where(a => a.Data < dataFimUtcExclusive.Value);
             if (req.ClienteId.HasValue)
                 query = query.Where(a => a.ClienteId == req.ClienteId.Value);
             if (req.AtendenteId.HasValue)
@@ -619,11 +628,13 @@ app.MapPost("/agendamentos/{id:guid}/reagendar", async (
         return Results.Forbid();
     }
 
-    var (ok, error) = await agendamentoService.ValidarNovoAgendamentoAsync(ag.ClienteId, ag.AtendenteId, novaData, novoHorario, id);
+    var novaDataUtc = DateTime.SpecifyKind(novaData.Date, DateTimeKind.Utc);
+
+    var (ok, error) = await agendamentoService.ValidarNovoAgendamentoAsync(ag.ClienteId, ag.AtendenteId, novaDataUtc, novoHorario, id);
     if (!ok) return Results.BadRequest(new { error });
     ag.Status = Domain.Entities.StatusAgendamento.Reagendado;
     ag.DataReagendamento = DateTime.UtcNow;
-    ag.Data = novaData;
+    ag.Data = novaDataUtc;
     ag.Horario = novoHorario;
     ag.JustificativaReagendamento = justificativa.Trim();
     await db.SaveChangesAsync();
@@ -687,7 +698,19 @@ app.MapPost("/agendamentos", async (
     if (isCliente && (!Guid.TryParse(userId, out var actorId) || actorId != req.ClienteId))
         return Results.Forbid();
 
-    var (ok, error) = await agendamentoService.ValidarNovoAgendamentoAsync(req.ClienteId, req.AtendenteId, req.Data, req.Horario);
+    Domain.Entities.StatusAgendamento statusAgendamento = Domain.Entities.StatusAgendamento.Pendente;
+    if (!string.IsNullOrWhiteSpace(req.Status))
+    {
+        if (!Enum.TryParse<Domain.Entities.StatusAgendamento>(req.Status, true, out var parsedStatus))
+            return Results.BadRequest(new { error = "Status inválido." });
+
+        // Cliente comum sempre cria como pendente.
+        statusAgendamento = isAdmin ? parsedStatus : Domain.Entities.StatusAgendamento.Pendente;
+    }
+
+    var dataAgendamentoUtc = DateTime.SpecifyKind(req.Data.Date, DateTimeKind.Utc);
+
+    var (ok, error) = await agendamentoService.ValidarNovoAgendamentoAsync(req.ClienteId, req.AtendenteId, dataAgendamentoUtc, req.Horario);
     if (!ok)
         return Results.BadRequest(new { error });
     var novo = new Domain.Entities.Agendamento
@@ -696,9 +719,9 @@ app.MapPost("/agendamentos", async (
         Titulo = req.Titulo,
         Descricao = req.Descricao,
         TipoAtendimento = req.TipoAtendimento,
-        Data = req.Data,
+        Data = dataAgendamentoUtc,
         Horario = req.Horario,
-        Status = Domain.Entities.StatusAgendamento.Pendente,
+        Status = statusAgendamento,
         ClienteId = req.ClienteId,
         AtendenteId = req.AtendenteId,
         Observacoes = req.Observacoes,
@@ -930,14 +953,21 @@ app.MapPut("/agendamentos/{id:guid}", async (
 {
     var a = await db.Agendamentos.FindAsync(id);
     if (a == null) return Results.NotFound();
-    var (ok, error) = await agendamentoService.ValidarNovoAgendamentoAsync(req.ClienteId, req.AtendenteId, req.Data, req.Horario, id);
+
+    if (string.IsNullOrWhiteSpace(req.Status) || !Enum.TryParse<Domain.Entities.StatusAgendamento>(req.Status, true, out var statusAgendamento))
+        return Results.BadRequest(new { error = "Status inválido." });
+
+    var dataAgendamentoUtc = DateTime.SpecifyKind(req.Data.Date, DateTimeKind.Utc);
+
+    var (ok, error) = await agendamentoService.ValidarNovoAgendamentoAsync(req.ClienteId, req.AtendenteId, dataAgendamentoUtc, req.Horario, id);
     if (!ok)
         return Results.BadRequest(new { error });
     a.Titulo = req.Titulo;
     a.Descricao = req.Descricao;
     a.TipoAtendimento = req.TipoAtendimento;
-    a.Data = req.Data;
+    a.Data = dataAgendamentoUtc;
     a.Horario = req.Horario;
+    a.Status = statusAgendamento;
     a.ClienteId = req.ClienteId;
     a.AtendenteId = req.AtendenteId;
     a.Observacoes = req.Observacoes;
@@ -1451,13 +1481,19 @@ app.MapGet("/disponibilidades/horarios-disponiveis", async (
     DateTime data,
     Infrastructure.Persistence.AppDbContext db) =>
 {
-    var diaSemana = data.DayOfWeek;
+    var dataUtc = DateTime.SpecifyKind(data.Date, DateTimeKind.Utc);
+    var dataFimUtcExclusive = dataUtc.AddDays(1);
+    var diaSemana = dataUtc.DayOfWeek;
+
     var disponibilidades = await db.Disponibilidades
         .Where(d => d.AtendenteId == atendenteId && d.DiaSemana == diaSemana && d.Ativo)
         .ToListAsync();
+
     var agendados = await db.Agendamentos
-        .Where(a => a.AtendenteId == atendenteId && a.Data == data &&
-            (a.Status == Domain.Entities.StatusAgendamento.Pendente || a.Status == Domain.Entities.StatusAgendamento.Confirmado))
+        .Where(a => a.AtendenteId == atendenteId
+            && a.Data >= dataUtc
+            && a.Data < dataFimUtcExclusive
+            && (a.Status == Domain.Entities.StatusAgendamento.Pendente || a.Status == Domain.Entities.StatusAgendamento.Confirmado))
         .Select(a => a.Horario)
         .ToListAsync();
     var horarios = new List<TimeSpan>();

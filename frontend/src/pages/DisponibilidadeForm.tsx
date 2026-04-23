@@ -5,6 +5,7 @@ import api from '../services/api';
 import { getApiErrorMessage } from '../services/error';
 import { useAuth } from '../store/auth';
 import { useCreateDisponibilidade, useDisponibilidades, useUpdateDisponibilidade } from '../hooks/useDisponibilidade';
+import BrDateInput from '../components/BrDateInput';
 
 const diasSemana = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -208,12 +209,11 @@ export default function DisponibilidadeForm() {
           </select>
 
           <label style={{ fontWeight: 700, color: '#334155' }} htmlFor="data">Data <span style={{ color: '#dc2626' }}>*</span></label>
-          <input
+          <BrDateInput
             id="data"
             name="data"
-            type="date"
             value={form.data}
-            onChange={handleChange}
+            onValueChange={(value) => setForm((f) => ({ ...f, data: value }))}
             style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px' }}
             required
           />

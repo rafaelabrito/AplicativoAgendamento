@@ -214,6 +214,41 @@ namespace Tests
         }
 
         [Fact]
+        public async Task CriarAgendamento_ComDataUnspecified_DevePersistirComSucesso()
+        {
+            var client = _factory.CreateClient();
+            var token = await GetAdminTokenAsync(client);
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            var cliente = await CriarUsuario(client, "Cliente");
+            var atendente = await CriarUsuario(client, "Atendente");
+            var data = DateTime.SpecifyKind(System.DateTime.UtcNow.Date.AddDays(1), DateTimeKind.Unspecified);
+            await CriarDisponibilidade(client, atendente.Id, data, new TimeSpan(8, 0, 0), new TimeSpan(12, 0, 0));
+
+            var request = new CreateAgendamentoRequest
+            {
+                ClienteId = cliente.Id,
+                AtendenteId = atendente.Id,
+                Titulo = "Consulta com data sem timezone",
+                TipoAtendimento = "Consultoria",
+                Data = data,
+                Horario = new TimeSpan(8, 0, 0),
+            };
+
+            var response = await client.PostAsJsonAsync("/agendamentos", request);
+
+            if (response.StatusCode != HttpStatusCode.Created)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                throw new Xunit.Sdk.XunitException($"Esperado 201 Created ao criar agendamento com data unspecified, mas recebeu {(int)response.StatusCode} - {response.StatusCode}. Conteúdo: {content}");
+            }
+
+            var agendamento = await response.Content.ReadFromJsonAsync<AgendamentoResponse>();
+            agendamento.Should().NotBeNull();
+            agendamento!.Data.Kind.Should().Be(DateTimeKind.Utc);
+            agendamento.Data.Date.Should().Be(data.Date);
+        }
+
+        [Fact]
         public async Task CriarAgendamento_Cliente_NaoPodeCriarParaOutroCliente()
         {
             var adminClient = _factory.CreateClient();

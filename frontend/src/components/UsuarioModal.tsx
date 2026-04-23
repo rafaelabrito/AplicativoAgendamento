@@ -2,6 +2,7 @@ import { useState } from 'react';
 import InputMask from 'react-input-mask';
 import { cpf } from 'cpf-cnpj-validator';
 import api from '../services/api';
+import BrDateInput from './BrDateInput';
 
 interface UsuarioModalProps {
   open: boolean;
@@ -20,7 +21,7 @@ export default function UsuarioModal({ open, onClose, onSuccess, usuario, isAdmi
     senha: '',
     confirmeSenha: '',
     cpf: usuario?.cpf || '',
-    dataNascimento: usuario?.dataNascimento || '',
+    dataNascimento: usuario?.dataNascimento ? String(usuario.dataNascimento).slice(0, 10) : '',
     telefone: usuario?.telefone || '',
     observacoes: usuario?.observacoes || '',
     ativo: usuario?.ativo ?? true,
@@ -114,7 +115,7 @@ export default function UsuarioModal({ open, onClose, onSuccess, usuario, isAdmi
               required
             />
             <label className="font-semibold">Data de Nascimento <span className="text-red-500">*</span></label>
-            <input name="dataNascimento" value={form.dataNascimento} onChange={handleChange} placeholder="Data de Nascimento" className={`border p-2 rounded ${error.includes('nascimento') ? 'border-red-500' : ''}`} required type="date" />
+            <BrDateInput name="dataNascimento" value={form.dataNascimento} onValueChange={(value) => setForm((f) => ({ ...f, dataNascimento: value }))} className={`border p-2 rounded ${error.includes('nascimento') ? 'border-red-500' : ''}`} required />
             <label className="font-semibold">Telefone <span className="text-red-500">*</span></label>
             <InputMask
               mask="(99) 99999-9999"

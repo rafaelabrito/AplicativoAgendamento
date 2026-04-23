@@ -4,12 +4,21 @@ import api from '../services/api';
 import { useAuth } from '../store/auth';
 import { getApiErrorMessage } from '../services/error';
 import Layout from '../components/Layout';
+import BrDateInput from '../components/BrDateInput';
 
 const tiposAtendimento = [
   'Consultoria',
   'Suporte Técnico',
   'Atendimento Comercial',
   'Entrevista',
+];
+
+const statusOptions = [
+  'Pendente',
+  'Confirmado',
+  'Cancelado',
+  'Reagendado',
+  'Realizado',
 ];
 
 export default function AgendamentoForm() {
@@ -26,6 +35,7 @@ export default function AgendamentoForm() {
     titulo: '',
     descricao: '',
     tipoAtendimento: tiposAtendimento[0],
+    status: statusOptions[0],
     data: '',
     horario: '',
     clienteId: '',
@@ -37,6 +47,13 @@ export default function AgendamentoForm() {
   const [loadingHorarios, setLoadingHorarios] = useState(false);
 
   const normalizeHorario = (value: string) => String(value || '').slice(0, 5);
+  const parseHorarios = (payload: unknown) => (
+    Array.isArray(payload)
+      ? payload
+          .map((h: unknown) => normalizeHorario(String(h || '')))
+          .filter((h: string) => /^\d{2}:\d{2}$/.test(h))
+      : []
+  );
 
   useEffect(() => {
     api.get('/usuarios?tipo=Atendente').then(res => setAtendentes(res.data));
@@ -65,6 +82,7 @@ export default function AgendamentoForm() {
           titulo: a.titulo || '',
           descricao: a.descricao || '',
           tipoAtendimento: a.tipoAtendimento || tiposAtendimento[0],
+          status: statusOptions.includes(a.status) ? a.status : statusOptions[0],
           data: String(a.data || '').slice(0, 10),
           horario: String(a.horario || '').slice(0, 5),
           clienteId: a.clienteId || '',
@@ -85,20 +103,24 @@ export default function AgendamentoForm() {
 
       setLoadingHorarios(true);
       try {
-        const res = await api.get('/disponibilidades/horarios-disponiveis', {
-          params: {
-            atendenteId: form.atendenteId,
-            data: form.data,
-          },
-        });
-
-        const horarios = Array.isArray(res.data)
-          ? res.data
-              .map((h: unknown) => normalizeHorario(String(h || '')))
-              .filter((h: string) => /^\d{2}:\d{2}$/.test(h))
-          : [];
-
-        setHorariosDisponiveis(horarios);
+        try {
+          // Endpoint do backend monolítico
+          const res = await api.get('/disponibilidades/horarios-disponiveis', {
+            params: {
+              atendenteId: form.atendenteId,
+              data: form.data,
+            },
+          });
+          setHorariosDisponiveis(parseHorarios(res.data));
+        } catch {
+          // Fallback para API Gateway de microsserviços
+          const resGateway = await api.get(`/disponibilidade/atendente/${encodeURIComponent(form.atendenteId)}/horarios`, {
+            params: {
+              data: form.data,
+            },
+          });
+          setHorariosDisponiveis(parseHorarios(resGateway.data));
+        }
       } catch {
         setHorariosDisponiveis([]);
       } finally {
@@ -117,6 +139,7 @@ export default function AgendamentoForm() {
   const validateForm = () => {
     if (!form.titulo) return 'Título é obrigatório';
     if (!form.tipoAtendimento) return 'Tipo de atendimento é obrigatório';
+    if (!form.status) return 'Status é obrigatório';
     if (!form.data) return 'Data é obrigatória';
     if (new Date(form.data) < new Date(new Date().toISOString().slice(0, 10))) return 'Data não pode ser anterior a hoje';
     if (!form.atendenteId) return 'Selecione um atendente';
@@ -191,8 +214,15 @@ export default function AgendamentoForm() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontWeight: 700, color: '#334155' }}>Status <span style={{ color: '#dc2626' }}>*</span></label>
+              <select name="status" value={form.status} onChange={handleChange} style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px' }}>
+                {statusOptions.map(status => <option key={status} value={status}>{status}</option>)}
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <label style={{ fontWeight: 700, color: '#334155' }}>Data <span style={{ color: '#dc2626' }}>*</span></label>
-              <input name="data" value={form.data} onChange={handleChange} type="date" style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px' }} required />
+              <BrDateInput name="data" value={form.data} onValueChange={(value) => setForm((f) => ({ ...f, data: value }))} style={{ border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px' }} required />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
